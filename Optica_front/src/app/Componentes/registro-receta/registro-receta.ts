@@ -14,6 +14,7 @@ import { obtenerOrigenApi } from '../../shared/services/api-origin';
 })
 export class RegistroRecetaComponent implements OnInit {
   @ViewChild('imagenInput') private imagenInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('confirmacion') private confirmacionRef?: ElementRef<HTMLElement>;
   protected readonly recetaId: number | null;
   protected readonly isLoading = signal(false);
   protected readonly cargaFallida = signal(false);
@@ -147,6 +148,7 @@ export class RegistroRecetaComponent implements OnInit {
     solicitud.subscribe({
       next: (receta) => {
         this.successMessage.set(this.recetaId === null ? 'Receta registrada correctamente.' : 'Receta actualizada correctamente.');
+        setTimeout(() => this.confirmacionRef?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
         this.isSubmitting.set(false);
         this.selectedImage.set(null);
         if (this.imagenInput) this.imagenInput.nativeElement.value = "";
