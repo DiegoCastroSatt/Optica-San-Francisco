@@ -235,7 +235,7 @@ public class OpticaDbContext : DbContext
             entity.Property(r => r.ClienteId)
                 .HasColumnName("id_cliente");
 
-            entity.HasIndex(r => new { r.ClienteId, r.Fecha }).HasDatabaseName("idx_recetas_cliente_fecha");
+            entity.HasIndex(r => r.ClienteId).HasDatabaseName("idx_recetas_cliente");
             entity.Property(r => r.Fecha)
                 .HasColumnName("fecha")
                 .HasColumnType("date");
@@ -470,7 +470,6 @@ public class OpticaDbContext : DbContext
             entity.Property(r => r.FechaCreacionUtc).HasColumnName("fecha_creacion_utc");
             entity.Property(r => r.FechaActualizacionUtc).HasColumnName("fecha_actualizacion_utc");
             entity.HasIndex(r => new { r.IdCliente, r.IdProducto }).IsUnique();
-            entity.HasIndex(r => new { r.IdProducto, r.FechaCreacionUtc }).HasDatabaseName("idx_resenas_producto_fecha");
             entity.HasOne(r => r.Cliente).WithMany().HasForeignKey(r => r.IdCliente).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(r => r.Producto).WithMany().HasForeignKey(r => r.IdProducto).OnDelete(DeleteBehavior.Restrict);
         });

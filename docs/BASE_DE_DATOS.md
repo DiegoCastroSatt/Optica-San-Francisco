@@ -73,7 +73,7 @@ No incluir registros de `insert.sql` ni datos de usuarios en la documentación. 
 
 ## Verificación de índices y paginación
 
-Medición con `EXPLAIN ANALYZE` en MySQL 8.4, sobre 100.000 filas sintéticas por tabla. Se comparó la primera página (21 filas para detectar si existe una siguiente). Las mediciones se refieren a la selección de filas principales, antes de cargar los detalles de venta.
+Medición con `EXPLAIN ANALYZE` en MySQL 8.4, sobre 100.000 filas sintéticas por tabla. Se comparó la selección de las primeras 21 filas en la prueba original. Las mediciones se refieren a la selección de filas principales, antes de cargar los detalles de venta.
 
 | Consulta | Antes | Después | Plan observado |
 |---|---:|---:|---|
@@ -83,6 +83,14 @@ Medición con `EXPLAIN ANALYZE` en MySQL 8.4, sobre 100.000 filas sintéticas po
 
 MySQL eligió los índices sin hints. El plan de pedidos depende de la proporción de atrasados y de los filtros. La búsqueda por fragmentos de nombre o código puede seguir necesitando un escaneo. El resumen y ranking de ventas se calculan en SQL y se consultan aparte de la página del historial. Las rutas originales de la API siguen disponibles para sus consumidores existentes.
 
+### Criterio de selección
+
+Cada índice ocupa espacio y requiere mantenimiento al escribir en las columnas que cubre. Se priorizaron los listados paginados de ventas, catálogo, pedidos y movimientos recientes de stock, donde las pruebas redujeron las filas examinadas al cargar la primera página. En la consulta por RUT, `idx_pedidos_rut_fecha` reemplaza el índice simple y también permite ordenar el historial de cada cliente. En las pruebas originales, stock reciente pasó de 410 a 0,75 ms y pedidos por RUT de 128 a 0,49 ms, combinando cambios de consulta e índice.
+
+Se conserva el índice simple por cliente en recetas y el índice que InnoDB proporciona para la clave foránea por producto en reseñas. Los compuestos probados para esos listados evitaron ordenar por separado, con diferencias de 0,80 a 0,75 ms en recetas y de 5,64 a 5,42 ms en reseñas. Esas mediciones sintéticas no justifican ampliar los índices por ahora. Los horarios ya reutilizan el índice existente por fecha y hora.
+
+Antes de añadir otro índice, medir con una carga representativa de la óptica: volumen de datos, distribución de los filtros, frecuencia de lectura y escritura, y páginas que se consultan habitualmente. Comparar el plan real, las filas examinadas y los tiempos con `EXPLAIN ANALYZE`. Contrastar la mejora con el espacio adicional y el costo de escritura antes de incorporarlo.
+
 Las instalaciones nuevas reciben los índices de `database/schema.sql`. En bases existentes que aún no tengan los dos índices de ventas y catálogo, verificar primero con `SHOW INDEX` y ejecutar únicamente los cambios pendientes:
 
 ```sql
@@ -90,4 +98,4 @@ ALTER TABLE ventas ADD INDEX idx_ventas_fecha (fecha, id_venta), ALGORITHM=INPLA
 ALTER TABLE productos ADD INDEX idx_productos_nombre (nombre, id_producto), ALGORITHM=INPLACE, LOCK=NONE;
 ```
 
-Si la base aún usa el esquema anterior a la optimización de pedidos, stock, recetas y reseñas, aplicar también los índices correspondientes de `schema.sql`. Crear primero los índices compuestos y luego quitar `idx_pedidos_cliente` e `idx_recetas_cliente` si están presentes. Usar `ALGORITHM=INPLACE, LOCK=NONE` en cada cambio para evitar una copia de las tablas.
+Para bases que todavía usan el esquema anterior de pedidos y stock, crear los índices pendientes de `schema.sql` con `ALGORITHM=INPLACE, LOCK=NONE`. Retirar `idx_pedidos_cliente` solo después de crear `idx_pedidos_rut_fecha`. Si una base ya recibió los índices compuestos de recetas o reseñas durante las pruebas, crear o verificar primero el índice simple que cubre la clave foránea antes de retirar el compuesto.
