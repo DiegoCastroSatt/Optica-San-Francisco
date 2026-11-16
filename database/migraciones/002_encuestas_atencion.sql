@@ -15,8 +15,7 @@ CREATE TABLE IF NOT EXISTS encuestas_atencion (
     CONSTRAINT uq_encuesta_reserva UNIQUE (id_reserva),
     CONSTRAINT uq_encuesta_token UNIQUE (token_hash),
     CONSTRAINT fk_encuesta_reserva FOREIGN KEY (id_reserva)
-        REFERENCES reservas(id_reserva) ON DELETE RESTRICT,
-    INDEX idx_encuestas_fecha_envio (fecha_envio_utc)
+        REFERENCES reservas(id_reserva) ON DELETE RESTRICT
 );
 
 -- Respuestas anónimas: sin referencia a la reserva, al cliente ni a la encuesta.
@@ -32,6 +31,5 @@ CREATE TABLE IF NOT EXISTS respuestas_encuesta_atencion (
     fecha_respuesta DATE NOT NULL,
     CONSTRAINT ck_respuesta_general CHECK (calificacion_general BETWEEN 1 AND 5),
     CONSTRAINT ck_respuesta_trato CHECK (calificacion_trato BETWEEN 1 AND 5),
-    CONSTRAINT ck_respuesta_puntualidad CHECK (calificacion_puntualidad BETWEEN 1 AND 5),
-    INDEX idx_respuestas_encuesta_fecha (fecha_respuesta)
+    CONSTRAINT ck_respuesta_puntualidad CHECK (calificacion_puntualidad BETWEEN 1 AND 5)
 );

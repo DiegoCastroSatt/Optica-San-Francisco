@@ -59,17 +59,15 @@ erDiagram
 
 Además de las claves primarias, el esquema declara índices para recetas/cliente, pedidos/cliente y estado, reservas/horario y recordatorios, categoría/stock de productos, unicidades de cuenta/horario/catálogo/reseña y checks de tipo de personal/calificación. Las FKs especifican reglas de borrado: por ejemplo, producto→tipo de marco y venta→cliente usan `SET NULL`; historial stock restringe borrar producto/responsable; detalle de venta referencia sus padres. Consulta `schema.sql` para longitudes, tipos y reglas exactas.
 
-## Migraciones e inicialización
+## Inicialización y actualización
 
-La carpeta `database/migraciones/` contiene `001_fk_pedidos_cliente_on_update_cascade.sql`, que cambia el comportamiento de actualización de la FK del RUT de pedidos. No se encontró un historial de migraciones EF Core en el repositorio. El Compose principal monta `schema.sql` en la inicialización de MySQL; `insert.sql` no está montado por ese Compose. El Compose E2E monta schema y seed sintético de solo lectura.
+Para una instalación nueva, aplicar `database/schema.sql` a una base MySQL vacía con una cuenta autorizada para crear el esquema y sus tablas. En la nube, confirmar previamente el nombre de la base asignada y los permisos disponibles. Los datos de ejemplo de `database/insert.sql` y los datos sintéticos de `database/e2e/` se reservan para entornos de prueba.
 
-## Diferencias entre entornos
+Para una base existente, revisar el esquema instalado y aplicar solo los cambios pendientes. `database/migraciones/` contiene scripts SQL para cambios concretos, como la actualización de la clave foránea de pedidos y la creación de las tablas de encuestas. Antes de aplicar cambios en producción, disponer de un respaldo y validar los scripts en un entorno con la misma versión de MySQL.
 
-- **Desarrollo local:** Compose principal usa el volumen persistente `optica_mysql_data`; los scripts de inicialización aplican al crear la base vacía. Es posible tener datos locales de trabajo.
-- **E2E:** MySQL temporal, `tmpfs`, schema y datos sintéticos dedicados; no persiste tras retirar el servicio. No reutiliza la base local.
-- **Servidor externo:** el repositorio no describe la instancia remota, su versión efectiva, estrategia de backups/migraciones ni su proceso de actualización. No asumir que coincide con el volumen local o con E2E.
+## Despliegue en la nube
 
-No incluir registros de `insert.sql` ni datos de usuarios en la documentación. La lista de tablas se obtuvo del esquema y debe actualizarse al cambiarlo.
+La API recibe su conexión mediante `ConnectionStrings__OpticaDb`. Configurarla en el gestor de secretos del entorno y usar TLS según la configuración del servicio MySQL. Confirmar en cada despliegue la versión del motor, los permisos para aplicar cambios de esquema y la política de copias de seguridad.
 
 ## Verificación de índices y paginación
 
@@ -85,17 +83,8 @@ MySQL eligió los índices sin hints. El plan de pedidos depende de la proporci�
 
 ### Criterio de selección
 
-Cada índice ocupa espacio y requiere mantenimiento al escribir en las columnas que cubre. Se priorizaron los listados paginados de ventas, catálogo, pedidos y movimientos recientes de stock, donde las pruebas redujeron las filas examinadas al cargar la primera página. En la consulta por RUT, `idx_pedidos_rut_fecha` reemplaza el índice simple y también permite ordenar el historial de cada cliente. En las pruebas originales, stock reciente pasó de 410 a 0,75 ms y pedidos por RUT de 128 a 0,49 ms, combinando cambios de consulta e índice.
+Los tiempos de ventas de la tabla corresponden a una prueba histórica. Se retiró `idx_ventas_fecha`, que servía tanto al historial de ventas como al ranking. La decisión prioriza el costo de mantener índices frente a la frecuencia de consulta de esos flujos. Verificar los planes con datos y patrones de uso representativos del entorno desplegado, ya que los tiempos de la tabla corresponden a datos sintéticos.
 
-Se conserva el índice simple por cliente en recetas y el índice que InnoDB proporciona para la clave foránea por producto en reseñas. Los compuestos probados para esos listados evitaron ordenar por separado, con diferencias de 0,80 a 0,75 ms en recetas y de 5,64 a 5,42 ms en reseñas. Esas mediciones sintéticas no justifican ampliar los índices por ahora. Los horarios ya reutilizan el índice existente por fecha y hora.
+También se retiraron los índices de ordenamiento por fecha del historial de stock, pedidos por RUT y encuestas. Se conservan las claves primarias, las restricciones de unicidad de las encuestas y los índices que respaldan claves foráneas. Los intentos de correo conservan sus índices compuestos por correo y fecha. El listado operativo de pedidos y el catálogo conservan sus índices por fecha y nombre, respectivamente.
 
-Antes de añadir otro índice, medir con una carga representativa de la óptica: volumen de datos, distribución de los filtros, frecuencia de lectura y escritura, y páginas que se consultan habitualmente. Comparar el plan real, las filas examinadas y los tiempos con `EXPLAIN ANALYZE`. Contrastar la mejora con el espacio adicional y el costo de escritura antes de incorporarlo.
-
-Las instalaciones nuevas reciben los índices de `database/schema.sql`. En bases existentes que aún no tengan los dos índices de ventas y catálogo, verificar primero con `SHOW INDEX` y ejecutar únicamente los cambios pendientes:
-
-```sql
-ALTER TABLE ventas ADD INDEX idx_ventas_fecha (fecha, id_venta), ALGORITHM=INPLACE, LOCK=NONE;
-ALTER TABLE productos ADD INDEX idx_productos_nombre (nombre, id_producto), ALGORITHM=INPLACE, LOCK=NONE;
-```
-
-Para bases que todavía usan el esquema anterior de pedidos y stock, crear los índices pendientes de `schema.sql` con `ALGORITHM=INPLACE, LOCK=NONE`. Retirar `idx_pedidos_cliente` solo después de crear `idx_pedidos_rut_fecha`. Si una base ya recibió los índices compuestos de recetas o reseñas durante las pruebas, crear o verificar primero el índice simple que cubre la clave foránea antes de retirar el compuesto.
+En una base existente, consultar `SHOW INDEX` antes de retirar un índice. Si un compuesto es el único que cubre una clave foránea, crear primero un índice simple por `rut` en pedidos o por `id_producto` en historial de stock, según corresponda. Usar `ALGORITHM=INPLACE, LOCK=NONE` para los cambios de índices.
