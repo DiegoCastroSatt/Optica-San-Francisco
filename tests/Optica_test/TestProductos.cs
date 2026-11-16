@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Optica.Api.Modules.Productos.DTOs;
 using Optica.Api.Modules.Productos.Models;
 using Xunit;
 
@@ -285,6 +286,63 @@ public class TestProductos
     }
 
     [Fact]
+    public async Task ConsultarReporteInventario_ClasificaProductosYCalculaTotales()
+    {
+        var repositorio = new ProductoRepositorioPrueba();
+        repositorio.Productos.AddRange(
+            CrearProductoInventario(1, "DIS-001", "Disponible", 5, 2),
+            CrearProductoInventario(2, "BAJ-002", "Stock igual al mínimo", 2, 2),
+            CrearProductoInventario(3, "BAJ-003", "Stock bajo", 1, 2),
+            CrearProductoInventario(4, "AGO-004", "Agotado con mínimo cero", 0, 0),
+            CrearProductoInventario(5, "AGO-005", "Stock negativo", -1, 2));
+        using var origenCancelacion = new CancellationTokenSource();
+        var inicio = DateTimeOffset.UtcNow;
+
+        var resultado = await CrearServicio(repositorio)
+            .ConsultarReporteInventario(origenCancelacion.Token);
+        var fin = DateTimeOffset.UtcNow;
+
+        Assert.Equal(origenCancelacion.Token, repositorio.TokenReporteInventario);
+        Assert.InRange(resultado.GeneradoEn, inicio, fin);
+        Assert.Equal(TimeSpan.Zero, resultado.GeneradoEn.Offset);
+        Assert.Equal(5, resultado.TotalProductos);
+        Assert.Equal(1, resultado.TotalDisponibles);
+        Assert.Equal(2, resultado.TotalStockBajo);
+        Assert.Equal(2, resultado.TotalAgotados);
+        Assert.Equal(new ProductoReporteInventarioDto(1, "DIS-001", "Disponible", "Armazones", 5, 2),
+            Assert.Single(resultado.ProductosDisponibles));
+        Assert.Collection(resultado.ProductosStockBajo,
+            producto => Assert.Equal(
+                new ProductoReporteInventarioDto(2, "BAJ-002", "Stock igual al mínimo", "Armazones", 2, 2),
+                producto),
+            producto => Assert.Equal(
+                new ProductoReporteInventarioDto(3, "BAJ-003", "Stock bajo", "Armazones", 1, 2),
+                producto));
+        Assert.Collection(resultado.ProductosAgotados,
+            producto => Assert.Equal(
+                new ProductoReporteInventarioDto(4, "AGO-004", "Agotado con mínimo cero", "Armazones", 0, 0),
+                producto),
+            producto => Assert.Equal(
+                new ProductoReporteInventarioDto(5, "AGO-005", "Stock negativo", "Armazones", -1, 2),
+                producto));
+    }
+
+    [Fact]
+    public async Task ConsultarReporteInventario_SinProductosDevuelveListasYTotalesVacios()
+    {
+        var resultado = await CrearServicio(new ProductoRepositorioPrueba())
+            .ConsultarReporteInventario(CancellationToken.None);
+
+        Assert.Equal(0, resultado.TotalProductos);
+        Assert.Equal(0, resultado.TotalDisponibles);
+        Assert.Equal(0, resultado.TotalStockBajo);
+        Assert.Equal(0, resultado.TotalAgotados);
+        Assert.Empty(resultado.ProductosDisponibles);
+        Assert.Empty(resultado.ProductosStockBajo);
+        Assert.Empty(resultado.ProductosAgotados);
+    }
+
+    [Fact]
     public async Task ConsultarHistorialStock_FiltraPorProductoYRespetaPaginacion()
     {
         var esperado = new Optica.Api.Modules.Productos.DTOs.HistorialStockPaginadoResponseDto(
@@ -312,6 +370,16 @@ public class TestProductos
 
         Assert.Null(repositorio.UltimoIdProductoConsultado);
     }
+
+    private static Producto CrearProductoInventario(int id, string codigo, string nombre, int stock, int stockMinimo) => new()
+    {
+        IdProducto = id,
+        Codigo = codigo,
+        Nombre = nombre,
+        Categoria = "Armazones",
+        Stock = stock,
+        StockMinimo = stockMinimo
+    };
 
     private static ProductoService CrearServicio(ProductoRepositorioPrueba repositorio) =>
         new(repositorio, new EntornoPrueba());
@@ -352,6 +420,7 @@ internal sealed class ProductoRepositorioPrueba : IProductoRepository
     public int? UltimoIdProductoConsultado { get; private set; }
     public int? UltimaPaginaConsultada { get; private set; }
     public int? UltimoTamanoPaginaConsultado { get; private set; }
+    public CancellationToken? TokenReporteInventario { get; private set; }
     public Optica.Api.Modules.Productos.DTOs.HistorialStockPaginadoResponseDto? RespuestaHistorialProducto { get; set; }
     public List<Producto> Productos { get; } = [];
 
@@ -387,8 +456,11 @@ internal sealed class ProductoRepositorioPrueba : IProductoRepository
 
     public Task<List<Producto>> Buscar(string termino) => Task.FromResult(Productos);
 
-    public Task<List<Producto>> ObtenerParaReporteInventario(CancellationToken cancellationToken) =>
-        Task.FromResult(Productos);
+    public Task<List<Producto>> ObtenerParaReporteInventario(CancellationToken cancellationToken)
+    {
+        TokenReporteInventario = cancellationToken;
+        return Task.FromResult(Productos);
+    }
 
     public Task<Producto?> ObtenerPorId(int id) => Task.FromResult(ProductoActual ?? UltimoProducto);
 
