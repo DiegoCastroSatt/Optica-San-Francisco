@@ -31,12 +31,18 @@ test('el administrador visualiza y descarga el reporte de stock', async ({ page 
 
   await test.step('visualiza el reporte PDF', async () => {
     const ventanaReportePromise = page.waitForEvent('popup');
+    const descargaVistaPreviaPromise = page.context().waitForEvent('download');
     await page.getByRole('button', { name: 'Ver PDF' }).click();
-    const ventanaReporte = await ventanaReportePromise;
+    const [ventanaReporte, descargaVistaPrevia] = await Promise.all([
+      ventanaReportePromise,
+      descargaVistaPreviaPromise
+    ]);
 
-    await expect.poll(() => ventanaReporte.url(), {
-      message: 'La vista previa debe cargar el PDF del inventario',
-    }).toMatch(/^blob:/);
+    expect(ventanaReporte.isClosed()).toBe(false);
+    const rutaVistaPrevia = testInfo.outputPath('vista-previa.pdf');
+    await descargaVistaPrevia.saveAs(rutaVistaPrevia);
+    const contenidoVistaPrevia = await readFile(rutaVistaPrevia);
+    expect(contenidoVistaPrevia.subarray(0, 5).toString('ascii')).toBe('%PDF-');
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
