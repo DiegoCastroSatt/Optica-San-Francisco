@@ -244,7 +244,6 @@ CREATE TABLE reservas (
 
 CREATE INDEX idx_recetas_cliente ON recetas(id_cliente);
 CREATE INDEX idx_pedidos_cliente ON pedidos(rut);
-CREATE INDEX idx_pedidos_fecha ON pedidos(fecha, id_pedido);
 CREATE INDEX idx_pedidos_estado ON pedidos(estado);
 CREATE INDEX idx_reservas_horario ON reservas(id_horario);
 CREATE INDEX idx_reservas_recordatorio ON reservas(estado, recordatorio_enviado_utc);
@@ -304,6 +303,7 @@ CREATE TABLE intentos_correo_pedidos (
         REFERENCES correos_pedidos(id_correo) ON DELETE CASCADE,
     INDEX idx_intentos_correo_pedidos_fecha (id_correo, fecha_utc)
 );
+CREATE INDEX idx_ventas_fecha ON ventas(fecha, id_venta);
 CREATE INDEX idx_productos_nombre ON productos(nombre, id_producto);
 CREATE INDEX idx_productos_categoria ON productos(categoria);
 CREATE INDEX idx_productos_stock ON productos(stock);

@@ -319,6 +319,7 @@ public class OpticaDbContext : DbContext
             entity.Property(v => v.ClienteId).HasColumnName("id_cliente");
             entity.HasOne(v => v.Cliente).WithMany().HasForeignKey(v => v.ClienteId).OnDelete(DeleteBehavior.SetNull);
             entity.Property(v => v.Fecha).HasColumnName("fecha");
+            entity.HasIndex(v => new { v.Fecha, v.IdVenta }).HasDatabaseName("idx_ventas_fecha");
             entity.Property(v => v.Total).HasColumnName("total").HasPrecision(10, 2);
             entity.HasMany(v => v.Detalles).WithOne().HasForeignKey(d => d.VentaId);
         });
@@ -354,7 +355,6 @@ public class OpticaDbContext : DbContext
             entity.Property(p => p.Rut).HasColumnName("rut");
             entity.Property(p => p.IdReceta).HasColumnName("id_receta");
             entity.Property(p => p.Fecha).HasColumnName("fecha");
-            entity.HasIndex(p => new { p.Fecha, p.IdPedido }).HasDatabaseName("idx_pedidos_fecha");
             entity.HasIndex(p => p.Rut).HasDatabaseName("idx_pedidos_cliente");
             entity.Property(p => p.Estado).HasColumnName("estado");
             entity.Property(p => p.Total).HasColumnName("total").HasPrecision(10, 2);
@@ -391,6 +391,7 @@ public class OpticaDbContext : DbContext
             entity.HasKey(i => i.Id);
             entity.Property(i => i.Id).HasColumnName("id_intento");
             entity.Property(i => i.CorreoReservaId).HasColumnName("id_correo");
+            entity.HasIndex(i => new { i.CorreoReservaId, i.FechaUtc }).HasDatabaseName("idx_intentos_correo_reservas_fecha");
             entity.Property(i => i.FechaUtc).HasColumnName("fecha_utc");
             entity.Property(i => i.Exitoso).HasColumnName("exitoso");
             entity.Property(i => i.Error).HasColumnName("error").HasColumnType("text");
@@ -421,6 +422,7 @@ public class OpticaDbContext : DbContext
             entity.HasKey(i => i.Id);
             entity.Property(i => i.Id).HasColumnName("id_intento");
             entity.Property(i => i.CorreoPedidoId).HasColumnName("id_correo");
+            entity.HasIndex(i => new { i.CorreoPedidoId, i.FechaUtc }).HasDatabaseName("idx_intentos_correo_pedidos_fecha");
             entity.Property(i => i.FechaUtc).HasColumnName("fecha_utc");
             entity.Property(i => i.Exitoso).HasColumnName("exitoso");
             entity.Property(i => i.Error).HasColumnName("error").HasColumnType("text");
