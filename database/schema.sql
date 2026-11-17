@@ -189,9 +189,7 @@ CREATE TABLE historial_stock (
     CONSTRAINT fk_historial_stock_producto
         FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE RESTRICT,
     CONSTRAINT fk_historial_stock_responsable
-        FOREIGN KEY (id_responsable) REFERENCES trabajador_optica(id_trabajador) ON DELETE RESTRICT,
-    INDEX idx_historial_stock_producto_fecha (id_producto, fecha_cambio),
-    INDEX idx_historial_stock_fecha (fecha_cambio, id_cambio)
+        FOREIGN KEY (id_responsable) REFERENCES trabajador_optica(id_trabajador) ON DELETE RESTRICT
 );
 
 CREATE TABLE horarios_atencion (
@@ -244,9 +242,8 @@ CREATE TABLE reservas (
     -- La API controla que solo exista una reserva activa para cada horario.
 );
 
-CREATE INDEX idx_recetas_cliente_fecha ON recetas(id_cliente, fecha);
-CREATE INDEX idx_pedidos_rut_fecha ON pedidos(rut, fecha, id_pedido);
-CREATE INDEX idx_pedidos_fecha ON pedidos(fecha, id_pedido);
+CREATE INDEX idx_recetas_cliente ON recetas(id_cliente);
+CREATE INDEX idx_pedidos_cliente ON pedidos(rut);
 CREATE INDEX idx_pedidos_estado ON pedidos(estado);
 CREATE INDEX idx_reservas_horario ON reservas(id_horario);
 CREATE INDEX idx_reservas_recordatorio ON reservas(estado, recordatorio_enviado_utc);
@@ -344,7 +341,6 @@ CREATE TABLE IF NOT EXISTS resenas_productos (
     fecha_creacion_utc DATETIME NOT NULL,
     fecha_actualizacion_utc DATETIME NULL,
     CONSTRAINT uq_resena_cliente_producto UNIQUE (id_cliente, id_producto),
-    INDEX idx_resenas_producto_fecha (id_producto, fecha_creacion_utc),
     CONSTRAINT ck_resena_calificacion CHECK (calificacion BETWEEN 1 AND 5),
     CONSTRAINT fk_resena_cliente FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE RESTRICT,
     CONSTRAINT fk_resena_producto FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE RESTRICT
@@ -362,8 +358,7 @@ CREATE TABLE IF NOT EXISTS encuestas_atencion (
     CONSTRAINT uq_encuesta_reserva UNIQUE (id_reserva),
     CONSTRAINT uq_encuesta_token UNIQUE (token_hash),
     CONSTRAINT fk_encuesta_reserva FOREIGN KEY (id_reserva)
-        REFERENCES reservas(id_reserva) ON DELETE RESTRICT,
-    INDEX idx_encuestas_fecha_envio (fecha_envio_utc)
+        REFERENCES reservas(id_reserva) ON DELETE RESTRICT
 );
 
 -- Respuestas anónimas: sin referencia a la reserva, al cliente ni a la encuesta.
@@ -379,6 +374,5 @@ CREATE TABLE IF NOT EXISTS respuestas_encuesta_atencion (
     fecha_respuesta DATE NOT NULL,
     CONSTRAINT ck_respuesta_general CHECK (calificacion_general BETWEEN 1 AND 5),
     CONSTRAINT ck_respuesta_trato CHECK (calificacion_trato BETWEEN 1 AND 5),
-    CONSTRAINT ck_respuesta_puntualidad CHECK (calificacion_puntualidad BETWEEN 1 AND 5),
-    INDEX idx_respuestas_encuesta_fecha (fecha_respuesta)
+    CONSTRAINT ck_respuesta_puntualidad CHECK (calificacion_puntualidad BETWEEN 1 AND 5)
 );
