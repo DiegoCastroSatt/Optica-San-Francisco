@@ -41,7 +41,8 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       servicios: [''],
       // El total lo ingresa el empleado: el sistema no lo calcula ni lo estima.
       total: [null as number | null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]],
-      anotaciones: ['']
+      anotaciones: [''],
+      fechaEntregaEstimada: ['']
     });
   }
 
@@ -96,7 +97,8 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       fecha: formValue.fecha ?? '',
       estado: formValue.estado ?? 'Pendiente',
       total: formValue.total ?? 0,
-      anotaciones: anotacionesFinales
+      anotaciones: formValue.anotaciones ?? '',
+      fechaEntregaEstimada: formValue.fechaEntregaEstimada || undefined
     }).subscribe({
       next: () => {
         this.isSubmitting.set(false);

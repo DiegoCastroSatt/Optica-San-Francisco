@@ -24,9 +24,41 @@ public class PedidoRepository : IPedidoRepository
             .ToListAsync();
     }
     
-    public async Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetalleAsync()
+    public async Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetalleAsync() =>
+        await ConsultarPedidosDetalle().OrderByDescending(p => p.Fecha)
+            .ThenByDescending(p => p.IdPedido).ToListAsync();
+
+    public async Task<PedidosPaginaResponseDto> ObtenerPaginaAsync(int pagina, int tamano, string termino, DateTime hoy)
     {
-        return await _context.Pedidos
+        var consulta = ConsultarPedidosDetalle();
+        if (termino.Length > 0)
+            consulta = consulta.Where(p => p.NombreCliente.Contains(termino));
+
+        var vencidos = consulta.Where(p => p.FechaEntregaEstimada.HasValue
+            && p.FechaEntregaEstimada < hoy && p.Estado != "Entregado" && p.Estado != "Cancelado");
+        var vigentes = consulta.Where(p => !p.FechaEntregaEstimada.HasValue
+            || p.FechaEntregaEstimada >= hoy || p.Estado == "Entregado" || p.Estado == "Cancelado");
+        var desplazamiento = (pagina - 1) * tamano;
+        var total = await consulta.CountAsync();
+        var limite = tamano;
+        var pedidos = await OrdenarPagina(vencidos, desplazamiento, limite).ToListAsync();
+        if (pedidos.Count < limite)
+        {
+            // Si la página empieza después de los vencidos, trasladar solo el desplazamiento restante.
+            var omitidos = pedidos.Count == 0 && desplazamiento > 0 ? await vencidos.CountAsync() : desplazamiento;
+            pedidos.AddRange(await OrdenarPagina(vigentes, desplazamiento - omitidos, limite - pedidos.Count).ToListAsync());
+        }
+
+        var totalPaginas = (int)Math.Ceiling(total / (double)tamano);
+        return new PedidosPaginaResponseDto(pedidos, pagina < totalPaginas, totalPaginas);
+    }
+
+    private static IQueryable<PedidoResponseDto> OrdenarPagina(IQueryable<PedidoResponseDto> consulta, int desplazamiento, int limite) =>
+        consulta.OrderByDescending(p => p.Fecha).ThenByDescending(p => p.IdPedido)
+            .Skip(desplazamiento).Take(limite);
+
+    private IQueryable<PedidoResponseDto> ConsultarPedidosDetalle() =>
+        _context.Pedidos.AsNoTracking()
             .Join(
                 _context.Clientes,
                 p => p.Rut,
@@ -38,11 +70,9 @@ public class PedidoRepository : IPedidoRepository
                     Fecha = p.Fecha,
                     Estado = p.Estado,
                     Total = p.Total,
-                    Anotaciones = p.Anotaciones
-                })
-            .OrderByDescending(p => p.Fecha)
-            .ToListAsync();
-    }
+                    Anotaciones = p.Anotaciones,
+                    FechaEntregaEstimada = p.FechaEntregaEstimada
+                });
 
     public async Task<IEnumerable<Cliente>> ObtenerClientesActivosAsync()
     {
@@ -90,7 +120,7 @@ public class PedidoRepository : IPedidoRepository
 
     public Task<Pedido?> ObtenerPedidoPorIdParaActualizarAsync(int id) =>
         _context.Pedidos
-            .FromSqlInterpolated($"SELECT id_pedido, rut, id_receta, fecha, estado, total, anotaciones FROM pedidos WHERE id_pedido = {id} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT id_pedido, rut, id_receta, fecha, estado, total, anotaciones, fecha_entrega_estimada FROM pedidos WHERE id_pedido = {id} FOR UPDATE")
             .SingleOrDefaultAsync();
 
     public async Task ActualizarPedidoAsync(Pedido pedido)
@@ -114,7 +144,8 @@ public class PedidoRepository : IPedidoRepository
                     Fecha = p.Fecha,
                     Estado = p.Estado,
                     Total = p.Total,
-                    Anotaciones = p.Anotaciones
+                    Anotaciones = p.Anotaciones,
+                    FechaEntregaEstimada = p.FechaEntregaEstimada
                 }
             )
             .FirstOrDefaultAsync();
@@ -123,7 +154,8 @@ public class PedidoRepository : IPedidoRepository
     public async Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetallePorRutAsync(string rut)
     {
         return await _context.Pedidos
-            .Where(p => p.Rut.Replace(".", "").Replace("-", "").Trim().ToUpper() == rut)
+            .AsNoTracking()
+            .Where(p => p.Rut == rut)
             .Join(
                 _context.Clientes,
                 p => p.Rut,
@@ -135,9 +167,11 @@ public class PedidoRepository : IPedidoRepository
                     Fecha = p.Fecha,
                     Estado = p.Estado,
                     Total = p.Total,
-                    Anotaciones = p.Anotaciones
+                    Anotaciones = p.Anotaciones,
+                    FechaEntregaEstimada = p.FechaEntregaEstimada
                 })
             .OrderByDescending(p => p.Fecha)
+            .ThenByDescending(p => p.IdPedido)
             .ToListAsync();
     }
 }

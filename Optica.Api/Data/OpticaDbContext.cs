@@ -10,6 +10,8 @@ using Optica.Api.Modules.RegistroRecetas.Models;
 using Optica.Api.Modules.Ventas.Models;
 using Optica.Api.Modules.Pedidos.Models;
 using Optica.Api.Modules.Resenas.Models;
+using Optica.Api.Modules.Encuestas.Models;
+using Optica.Api.Modules.AvisosReposicion.Models;
 
 namespace Optica.Api.Data;
 
@@ -62,6 +64,10 @@ public class OpticaDbContext : DbContext
     public DbSet<Trabajador> Trabajadores => Set<Trabajador>();
     public DbSet<RolTrabajador> RolesTrabajadores => Set<RolTrabajador>();
     public DbSet<Resena> Resenas => Set<Resena>();
+    public DbSet<EncuestaAtencion> EncuestasAtencion => Set<EncuestaAtencion>();
+    public DbSet<RespuestaEncuestaAtencion> RespuestasEncuestaAtencion => Set<RespuestaEncuestaAtencion>();
+
+    public DbSet<AvisoReposicion> AvisosReposicion => Set<AvisoReposicion>();
 
     public DbSet<HistorialStock> HistorialStock => Set<HistorialStock>();
 
@@ -229,6 +235,7 @@ public class OpticaDbContext : DbContext
             entity.Property(r => r.ClienteId)
                 .HasColumnName("id_cliente");
 
+            entity.HasIndex(r => new { r.ClienteId, r.Fecha }).HasDatabaseName("idx_recetas_cliente_fecha");
             entity.Property(r => r.Fecha)
                 .HasColumnName("fecha")
                 .HasColumnType("date");
@@ -301,6 +308,7 @@ public class OpticaDbContext : DbContext
             entity.Property(p => p.Estado).HasColumnName("estado").HasMaxLength(9).IsRequired();
             entity.Property(p => p.RutaImagen).HasColumnName("ruta_imagen").HasMaxLength(255);
             entity.HasIndex(p => p.Codigo).IsUnique();
+            entity.HasIndex(p => new { p.Nombre, p.IdProducto }).HasDatabaseName("idx_productos_nombre");
         });
 
         modelBuilder.Entity<Venta>(entity =>
@@ -311,6 +319,7 @@ public class OpticaDbContext : DbContext
             entity.Property(v => v.ClienteId).HasColumnName("id_cliente");
             entity.HasOne(v => v.Cliente).WithMany().HasForeignKey(v => v.ClienteId).OnDelete(DeleteBehavior.SetNull);
             entity.Property(v => v.Fecha).HasColumnName("fecha");
+            entity.HasIndex(v => new { v.Fecha, v.IdVenta }).HasDatabaseName("idx_ventas_fecha");
             entity.Property(v => v.Total).HasColumnName("total").HasPrecision(10, 2);
             entity.HasMany(v => v.Detalles).WithOne().HasForeignKey(d => d.VentaId);
         });
@@ -346,9 +355,12 @@ public class OpticaDbContext : DbContext
             entity.Property(p => p.Rut).HasColumnName("rut");
             entity.Property(p => p.IdReceta).HasColumnName("id_receta");
             entity.Property(p => p.Fecha).HasColumnName("fecha");
+            entity.HasIndex(p => new { p.Fecha, p.IdPedido }).HasDatabaseName("idx_pedidos_fecha");
+            entity.HasIndex(p => new { p.Rut, p.Fecha, p.IdPedido }).HasDatabaseName("idx_pedidos_rut_fecha");
             entity.Property(p => p.Estado).HasColumnName("estado");
             entity.Property(p => p.Total).HasColumnName("total").HasPrecision(10, 2);
             entity.Property(p => p.Anotaciones).HasColumnName("anotaciones");
+            entity.Property(p => p.FechaEntregaEstimada).HasColumnName("fecha_entrega_estimada");
         });
 
         modelBuilder.Entity<CorreoReservaPendiente>(entity =>
@@ -415,6 +427,37 @@ public class OpticaDbContext : DbContext
             entity.Property(i => i.Error).HasColumnName("error").HasColumnType("text");
         });
 
+        modelBuilder.Entity<EncuestaAtencion>(entity =>
+        {
+            entity.ToTable("encuestas_atencion");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id_encuesta");
+            entity.Property(e => e.ReservaId).HasColumnName("id_reserva");
+            // El hash es token de concurrencia: si dos envíos llegan a la vez, solo uno lo anula.
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").HasMaxLength(64).IsFixedLength().IsConcurrencyToken();
+            entity.Property(e => e.TokenExpiraUtc).HasColumnName("token_expira_utc");
+            entity.Property(e => e.FechaEnvioUtc).HasColumnName("fecha_envio_utc");
+            entity.Property(e => e.Respondida).HasColumnName("respondida");
+            entity.HasIndex(e => e.ReservaId).IsUnique();
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasIndex(e => e.FechaEnvioUtc);
+            entity.HasOne<Reserva>().WithMany().HasForeignKey(e => e.ReservaId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RespuestaEncuestaAtencion>(entity =>
+        {
+            entity.ToTable("respuestas_encuesta_atencion");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Id).HasColumnName("id_respuesta");
+            entity.Property(r => r.CalificacionGeneral).HasColumnName("calificacion_general").HasColumnType("tinyint");
+            entity.Property(r => r.CalificacionTrato).HasColumnName("calificacion_trato").HasColumnType("tinyint");
+            entity.Property(r => r.CalificacionPuntualidad).HasColumnName("calificacion_puntualidad").HasColumnType("tinyint");
+            entity.Property(r => r.Comentario).HasColumnName("comentario").HasMaxLength(1000);
+            entity.Property(r => r.ComentarioOculto).HasColumnName("comentario_oculto");
+            entity.Property(r => r.FechaRespuesta).HasColumnName("fecha_respuesta").HasColumnType("date");
+            entity.HasIndex(r => r.FechaRespuesta);
+        });
+
         modelBuilder.Entity<Resena>(entity =>
         {
             entity.ToTable("resenas_productos");
@@ -427,8 +470,24 @@ public class OpticaDbContext : DbContext
             entity.Property(r => r.FechaCreacionUtc).HasColumnName("fecha_creacion_utc");
             entity.Property(r => r.FechaActualizacionUtc).HasColumnName("fecha_actualizacion_utc");
             entity.HasIndex(r => new { r.IdCliente, r.IdProducto }).IsUnique();
+            entity.HasIndex(r => new { r.IdProducto, r.FechaCreacionUtc }).HasDatabaseName("idx_resenas_producto_fecha");
             entity.HasOne(r => r.Cliente).WithMany().HasForeignKey(r => r.IdCliente).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(r => r.Producto).WithMany().HasForeignKey(r => r.IdProducto).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AvisoReposicion>(entity =>
+        {
+            entity.ToTable("avisos_reposicion");
+            entity.HasKey(a => a.IdAviso);
+            entity.Property(a => a.IdAviso).HasColumnName("id_aviso");
+            entity.Property(a => a.Rut).HasColumnName("rut").HasMaxLength(12).IsRequired();
+            entity.Property(a => a.IdProducto).HasColumnName("id_producto");
+            entity.Property(a => a.Fecha).HasColumnName("fecha").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(a => a.Estado).HasColumnName("estado").HasColumnType("enum('Abierta','Cerrada')").IsRequired();
+            entity.HasIndex(a => new { a.IdProducto, a.Estado });
+            entity.HasIndex(a => new { a.Rut, a.Estado });
+            entity.HasOne(a => a.Producto).WithMany().HasForeignKey(a => a.IdProducto)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<HistorialStock>(entity =>
@@ -444,6 +503,7 @@ public class OpticaDbContext : DbContext
             entity.Property(h => h.ValorActual).HasColumnName("valor_actual");
             entity.Property(h => h.FechaCambio).HasColumnName("fecha_cambio").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(h => new { h.IdProducto, h.FechaCambio });
+            entity.HasIndex(h => new { h.FechaCambio, h.IdCambio }).HasDatabaseName("idx_historial_stock_fecha");
             entity.HasOne<Producto>().WithMany().HasForeignKey(h => h.IdProducto).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<Trabajador>().WithMany().HasForeignKey(h => h.IdResponsable).OnDelete(DeleteBehavior.Restrict);
         });

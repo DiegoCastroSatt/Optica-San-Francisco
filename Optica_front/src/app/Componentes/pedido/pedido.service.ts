@@ -8,6 +8,7 @@ export interface CrearPedido {
   estado: string;
   total: number;
   anotaciones?: string;
+  fechaEntregaEstimada?: string;
 }
 
 export interface PedidoResponse {
@@ -17,6 +18,8 @@ export interface PedidoResponse {
   estado: string;
   total: number;
   anotaciones?: string;
+  fechaEntregaEstimada?: string;
+  vencido?: boolean;
 }
 
 export interface ResultadoActualizacionPedido {
@@ -37,6 +40,12 @@ export class PedidoService {
 
   obtenerPedidos(): Observable<PedidoResponse[]> {
     return this.http.get<PedidoResponse[]>(this.apiUrl);
+  }
+
+  obtenerPagina(pagina: number, termino: string): Observable<{ pedidos: PedidoResponse[]; haySiguiente: boolean; totalPaginas: number }> {
+    return this.http.get<{ pedidos: PedidoResponse[]; haySiguiente: boolean; totalPaginas: number }>(`${this.apiUrl}/pagina`, {
+      params: { pagina, termino }
+    });
   }
 
   obtenerClientes(): Observable<ClienteOption[]> {

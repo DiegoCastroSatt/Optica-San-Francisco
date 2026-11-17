@@ -14,6 +14,10 @@
     </form>
   </div>
 
+  @if (idMarco() !== null) {
+    <p class="status">Estilo seleccionado en el probador. <a routerLink="/productos">Ver todo el catálogo</a></p>
+  }
+
   <form class="filter-bar" [formGroup]="filtrosForm" (change)="aplicarFiltros()">
     <label>Estado
       <select formControlName="estado">
@@ -85,6 +89,32 @@
       }
     </div>
   }
+  @if (!cargando() && !error() && totalPaginas() > 1) {
+    <nav class="paginacion-listado" aria-label="Paginación de catálogo">
+      <button type="button" aria-label="Primera página" [disabled]="pagina() === 1" (click)="cambiarPagina(1)">«</button>
+      <button type="button" aria-label="Página anterior" [disabled]="pagina() === 1" (click)="cambiarPagina(pagina() - 1)">‹</button>
+      @let inicio = pagina() <= 2 ? 1 : pagina() === totalPaginas() ? pagina() - 2 : pagina() - 1;
+      @if (inicio > 1) {
+        <button type="button" (click)="cambiarPagina(1)">1</button>
+      }
+      @if (inicio > 2) {
+        <span class="paginacion-omision" aria-hidden="true">…</span>
+      }
+      @for (numero of [inicio, inicio + 1, inicio + 2]; track numero) {
+        @if (numero >= 1 && numero <= totalPaginas()) {
+          <button type="button" [attr.aria-current]="numero === pagina() ? 'page' : null" [disabled]="numero === pagina()" (click)="cambiarPagina(numero)">{{ numero }}</button>
+        }
+      }
+      @if (inicio + 3 < totalPaginas()) {
+        <span class="paginacion-omision" aria-hidden="true">…</span>
+      }
+      @if (inicio + 2 < totalPaginas()) {
+        <button type="button" (click)="cambiarPagina(totalPaginas())">{{ totalPaginas() }}</button>
+      }
+      <button type="button" aria-label="Página siguiente" [disabled]="pagina() >= totalPaginas()" (click)="cambiarPagina(pagina() + 1)">›</button>
+      <button type="button" aria-label="Última página" [disabled]="pagina() >= totalPaginas()" (click)="cambiarPagina(totalPaginas())">»</button>
+    </nav>
+  }
 </section>
 
 @if (productoSeleccionado(); as producto) {
@@ -112,6 +142,30 @@
               <div><dt>Stock</dt><dd>{{ producto.stock }}</dd></div>
               <div><dt>Estado</dt><dd>{{ producto.estado }}</dd></div>
             </dl>
+            @if (!esAdministrador && esProductoAgotado(producto)) {
+              <section class="restock-notice" aria-label="Aviso de reposición">
+                @if (autenticacion.cliente()) {
+                  @if (!avisoReposicionEnviado()) {
+                    <button
+                      class="primary"
+                      type="button"
+                      [disabled]="enviandoAvisoReposicion()"
+                      (click)="solicitarAvisoReposicion(producto.id)">
+                      {{ enviandoAvisoReposicion() ? 'Registrando solicitud…' : 'Avisarme cuando vuelva a estar disponible' }}
+                    </button>
+                  }
+                } @else if (sesionClienteVerificada()) {
+                  <p class="review-note">Inicia sesión para solicitar un aviso cuando este producto vuelva a estar disponible.</p>
+                  <a routerLink="/cliente/login">Iniciar sesión</a>
+                }
+                @if (mensajeAvisoReposicion()) {
+                  <p class="notificacion-sistema" data-tipo="success" role="status">{{ mensajeAvisoReposicion() }}</p>
+                }
+                @if (errorAvisoReposicion()) {
+                  <p class="notificacion-sistema" data-tipo="error" role="alert">{{ errorAvisoReposicion() }}</p>
+                }
+              </section>
+            }
             @if (esAdministrador) {
               <div class="detail-actions">
                 <button class="primary" type="button" (click)="activarEdicion()">Editar producto</button>

@@ -5,6 +5,17 @@ using Optica.Api.Modules.Productos.Models;
 
 public class ProductoService : IProductoService
 {
+    public async Task<(List<ProductoResponseDto> Productos, int Total)> BuscarPagina(string termino, string estado, string categoria,
+        string color, string marca, string ordenPrecio, int desplazamiento, int limite, int? marco = null)
+    {
+        var (productos, total) = await _productoRepository.BuscarPagina(
+            termino, estado, categoria, color, marca, ordenPrecio, desplazamiento, limite, marco);
+        return (productos.Select(Mapear).ToList(), total);
+    }
+
+    public Task<(string[] Categorias, string[] Colores, string[] Marcas)> OpcionesBusqueda(string termino) =>
+        _productoRepository.OpcionesBusqueda(termino);
+
     private static readonly string[] EstadosValidos = ["Disponible", "Agotado"];
     private static readonly string[] ExtensionesImagenValidas = [".jpg", ".jpeg", ".png", ".webp"];
     private readonly IProductoRepository _productoRepository;
@@ -79,6 +90,33 @@ public class ProductoService : IProductoService
 
     public async Task<List<ProductoResponseDto>> BuscarProductos(string termino) =>
         (await _productoRepository.Buscar(termino)).Select(Mapear).ToList();
+
+    public async Task<ReporteInventarioResponseDto> ConsultarReporteInventario(CancellationToken cancellationToken)
+    {
+        var productos = await _productoRepository.ObtenerParaReporteInventario(cancellationToken);
+        var agotados = productos
+            .Where(producto => producto.Stock <= 0)
+            .Select(MapearProductoReporte)
+            .ToList();
+        var stockBajo = productos
+            .Where(producto => producto.Stock > 0 && producto.Stock <= producto.StockMinimo)
+            .Select(MapearProductoReporte)
+            .ToList();
+        var disponibles = productos
+            .Where(producto => producto.Stock > producto.StockMinimo)
+            .Select(MapearProductoReporte)
+            .ToList();
+
+        return new ReporteInventarioResponseDto(
+            DateTimeOffset.UtcNow,
+            productos.Count,
+            disponibles.Count,
+            agotados.Count,
+            stockBajo.Count,
+            disponibles,
+            agotados,
+            stockBajo);
+    }
 
     public async Task<ProductoResponseDto?> ObtenerProducto(int id)
     {
@@ -229,6 +267,15 @@ public class ProductoService : IProductoService
         RutaImagen = producto.RutaImagen,
         TieneVentas = producto.TieneVentas
     };
+
+    private static ProductoReporteInventarioDto MapearProductoReporte(Producto producto) =>
+        new(
+            producto.IdProducto,
+            producto.Codigo,
+            producto.Nombre,
+            producto.Categoria,
+            producto.Stock,
+            producto.StockMinimo);
 
     private static void ValidarResponsableYMotivo(int idResponsable, string? motivo)
     {

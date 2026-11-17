@@ -31,6 +31,7 @@ describe('CrearPedidoComponent', () => {
     servicios: 'Montaje y ajuste',
     total: 45000,
     anotaciones: 'Cristales fotocromáticos con filtro azul',
+    fechaEntregaEstimada: '',
     ...cambios
   });
 
@@ -122,7 +123,8 @@ describe('CrearPedidoComponent', () => {
       productos: 'Armazón Ray-Ban',
       servicios: '',
       total: 12000,
-      anotaciones: 'Lentes antireflejo'
+      anotaciones: 'Lentes antireflejo',
+      fechaEntregaEstimada: ''
     }));
 
     const formulario = fixture.nativeElement.querySelector('form') as HTMLFormElement;
@@ -163,7 +165,9 @@ describe('CrearPedidoComponent', () => {
       productos: '',
       servicios: '',
       total: 1000,
-      anotaciones: ''
+      estado: 'Pendiente',
+      anotaciones: '',
+      fechaEntregaEstimada: ''
     }));
 
     fixture.componentInstance['submitPedido']();

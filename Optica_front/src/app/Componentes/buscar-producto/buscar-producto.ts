@@ -1,7 +1,9 @@
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
-import { Component, Input, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin, Subject, takeUntil } from 'rxjs';
 import { BuscarProductoService, Producto, ProductoEditable } from './buscar-producto.service';
 import { ResenaProducto, ResenasProductoService } from './resenas-producto.service';
 import { AutenticacionClienteService } from '../../shared/services/autenticacion-cliente.service';
@@ -9,14 +11,16 @@ import { obtenerOrigenApi } from '../../shared/services/api-origin';
 
 @Component({
   selector: 'app-busqueda-producto',
-  imports: [ReactiveFormsModule, CurrencyPipe],
+  imports: [ReactiveFormsModule, CurrencyPipe, RouterLink],
   templateUrl: './buscar-producto.html',
   styleUrl: './buscar-producto.css'
 })
 export class BuscarProductoComponent implements OnInit {
   @Input() esAdministrador = false;
 
-  protected readonly productos = signal<Producto[]>([]);
+  private readonly ruta = inject(ActivatedRoute, { optional: true });
+  protected readonly idMarco = signal<number | null>(null);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly productosVisibles = signal<Producto[]>([]);
   protected readonly categorias = signal<string[]>([]);
   protected readonly colores = signal<string[]>([]);
@@ -28,6 +32,11 @@ export class BuscarProductoComponent implements OnInit {
   protected readonly mensaje = signal('');
   protected readonly error = signal('');
   protected readonly productoSeleccionado = signal<Producto | null>(null);
+  protected readonly enviandoAvisoReposicion = signal(false);
+  protected readonly mensajeAvisoReposicion = signal('');
+  protected readonly errorAvisoReposicion = signal('');
+  protected readonly avisoReposicionEnviado = signal(false);
+  protected readonly sesionClienteVerificada = signal(false);
   protected readonly editando = signal(false);
   protected readonly guardando = signal(false);
   protected readonly selectedImage = signal<File | null>(null);
@@ -82,6 +91,14 @@ export class BuscarProductoComponent implements OnInit {
     if (!this.esAdministrador) {
       this.filtrosForm.controls.estado.setValue('');
       this.cargarSesionYProductosResenables();
+      if (this.ruta) {
+        this.ruta.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(parametros => {
+          const marco = Number(parametros.get('marco'));
+          this.idMarco.set(Number.isInteger(marco) && marco > 0 && marco <= 2147483647 ? marco : null);
+          this.buscar();
+        });
+        return;
+      }
     }
     if (this.esAdministrador) {
       this.cargarCatalogos();
@@ -91,6 +108,7 @@ export class BuscarProductoComponent implements OnInit {
 
   private cargarSesionYProductosResenables(): void {
     const cargarProductos = () => {
+      this.sesionClienteVerificada.set(true);
       if (!this.autenticacion.cliente()) return;
       this.resenasService.obtenerMisProductos().subscribe({
         next: productos => this.productosResenables.set(new Map(productos.map(item => [item.idProducto, item.yaResenado]))),
@@ -100,7 +118,10 @@ export class BuscarProductoComponent implements OnInit {
     if (this.autenticacion.cliente()) {
       cargarProductos();
     } else {
-      this.autenticacion.verificarSesion().subscribe({ next: cargarProductos, error: () => {} });
+      this.autenticacion.verificarSesion().subscribe({
+        next: cargarProductos,
+        error: () => this.sesionClienteVerificada.set(true)
+      });
     }
   }
 
@@ -119,18 +140,36 @@ export class BuscarProductoComponent implements OnInit {
     });
   }
 
+  protected readonly pagina = signal(1);
+  protected readonly totalPaginas = signal(0);
+  private terminoAplicado = '';
+  private readonly cancelarCatalogo = new Subject<void>();
+
   protected buscar(): void {
+    this.terminoAplicado = this.busquedaForm.controls.termino.value;
+    this.cambiarPagina(1, !this.esAdministrador);
+  }
+
+  protected aplicarFiltros(): void {
+    this.cambiarPagina(1);
+  }
+
+  protected cambiarPagina(pagina: number, incluirOpciones = false): void {
+    this.cancelarCatalogo.next();
     this.cargando.set(true);
     this.error.set('');
-    this.productoService.buscar(this.busquedaForm.controls.termino.value).subscribe({
-      next: (productos) => {
-        this.productos.set(productos);
-        if (!this.esAdministrador) {
-          this.categorias.set(this.opcionesUnicas(productos.map(producto => producto.categoria)));
-          this.colores.set(this.opcionesUnicas(productos.map(producto => producto.color)));
-          this.marcas.set(this.opcionesUnicas(productos.map(producto => producto.marca)));
-        }
-        this.aplicarFiltros();
+    this.productoService.buscarPagina({
+      ...this.filtrosForm.getRawValue(), pagina, termino: this.terminoAplicado, incluirOpciones,
+      ...(this.idMarco() !== null ? { marco: this.idMarco()! } : {})
+    }).pipe(takeUntil(this.cancelarCatalogo), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: resultado => {
+        this.pagina.set(pagina);
+        this.totalPaginas.set(resultado.totalPaginas);
+        this.productosVisibles.set(resultado.productos);
+        if (resultado.categorias) this.categorias.set(resultado.categorias);
+        if (resultado.colores) this.colores.set(resultado.colores);
+        if (resultado.marcas) this.marcas.set(resultado.marcas);
+        this.mensaje.set(resultado.productos.length ? '' : 'No hay existencias o no se encuentra el producto.');
         this.cargando.set(false);
       },
       error: () => {
@@ -140,42 +179,52 @@ export class BuscarProductoComponent implements OnInit {
     });
   }
 
-  protected aplicarFiltros(): void {
-    const { estado, categoria, color, marca, ordenPrecio } = this.filtrosForm.getRawValue();
-    const filtrados = this.productos().filter(producto =>
-      (!estado || producto.estado === estado) &&
-      (!categoria || producto.categoria === categoria) &&
-      (!color || producto.color === color) &&
-      (!marca || producto.marca === marca)
-    );
-
-    if (ordenPrecio === 'menor') {
-      filtrados.sort((a, b) => a.precio - b.precio);
-    } else if (ordenPrecio === 'mayor') {
-      filtrados.sort((a, b) => b.precio - a.precio);
-    }
-
-    this.productosVisibles.set(filtrados);
-    this.mensaje.set(filtrados.length ? '' : 'No hay existencias o no se encuentra el producto.');
-  }
-
   protected limpiarFiltros(): void {
     this.filtrosForm.reset({ estado: 'Disponible', categoria: '', color: '', marca: '', ordenPrecio: '' });
     this.aplicarFiltros();
   }
 
-  private opcionesUnicas(opciones: string[]): string[] {
-    return [...new Set(opciones.filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  }
+
 
   protected abrirDetalle(producto: Producto): void {
     this.productoSeleccionado.set(producto);
     this.editando.set(false);
     this.productoForm.reset(producto);
+    this.enviandoAvisoReposicion.set(false);
+    this.mensajeAvisoReposicion.set('');
+    this.errorAvisoReposicion.set('');
+    this.avisoReposicionEnviado.set(false);
     this.mensajeResena.set('');
     this.errorResena.set('');
     this.resenaForm.reset({ calificacion: 0, comentario: '' });
     if (!this.esAdministrador) this.cargarResenas(producto.id);
+  }
+
+  protected esProductoAgotado(producto: Producto): boolean {
+    return producto.stock <= 0 || producto.estado === 'Agotado';
+  }
+
+  protected solicitarAvisoReposicion(idProducto: number): void {
+    if (!this.autenticacion.cliente() || this.enviandoAvisoReposicion() || this.avisoReposicionEnviado()) {
+      return;
+    }
+
+    this.enviandoAvisoReposicion.set(true);
+    this.errorAvisoReposicion.set('');
+    this.mensajeAvisoReposicion.set('');
+    this.productoService.solicitarAvisoReposicion(idProducto).subscribe({
+      next: () => {
+        this.avisoReposicionEnviado.set(true);
+        this.mensajeAvisoReposicion.set('Solicitud registrada. Te enviaremos un correo cuando el producto vuelva a estar disponible.');
+        this.enviandoAvisoReposicion.set(false);
+      },
+      error: (respuesta: { error?: { mensaje?: string } }) => {
+        this.errorAvisoReposicion.set(
+          respuesta.error?.mensaje ?? 'No se pudo registrar la solicitud. Inténtalo nuevamente.'
+        );
+        this.enviandoAvisoReposicion.set(false);
+      }
+    });
   }
 
   private cargarResenas(idProducto: number): void {
@@ -330,8 +379,8 @@ export class BuscarProductoComponent implements OnInit {
     };
     this.productoService.actualizar(producto.id, productoEditado).subscribe({
       next: (actualizado) => {
-        this.productos.update(items => items.map(item => item.id === actualizado.id ? actualizado : item));
         this.productoSeleccionado.set(actualizado);
+        this.cambiarPagina(this.pagina());
         this.editando.set(false);
         this.guardando.set(false);
       },
@@ -351,7 +400,6 @@ export class BuscarProductoComponent implements OnInit {
     this.guardando.set(true);
     this.productoService.eliminar(producto.id).subscribe({
       next: () => {
-        this.productos.update(items => items.filter(item => item.id !== producto.id));
         this.cerrarDetalle();
         this.aplicarFiltros();
         this.guardando.set(false);
