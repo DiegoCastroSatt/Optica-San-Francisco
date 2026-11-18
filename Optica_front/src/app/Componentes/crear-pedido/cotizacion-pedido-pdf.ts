@@ -2,7 +2,8 @@ export interface CotizacionPedidoDatos {
   rutCliente: string;
   nombreCliente?: string;
   fecha: string;
-  fechaVencimiento: string;
+  fechaComprometida?: string;
+  fechaVencimiento?: string;
   total: number;
   productos?: string;
   servicios?: string;
@@ -35,7 +36,8 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
     '$' + String(Math.round(valor)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
   const fecha = formatearFechaCotizacion(datos.fecha);
-  const vencimiento = formatearFechaCotizacion(datos.fechaVencimiento);
+  const fechaComprometidaValor = datos.fechaComprometida || datos.fechaVencimiento || '';
+  const fechaComprometida = formatearFechaCotizacion(fechaComprometidaValor);
 
   const texto = (
     valor: string,
@@ -63,7 +65,7 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
 
     texto('CENTRO ÓPTICO SAN FRANCISCO', margen, 44, 13, true, false, [20, 76, 72]);
     texto('COTIZACIÓN DE PEDIDO', margen, 70, 19, true, false, [35, 49, 52]);
-    texto(`Válida hasta: ${vencimiento}`, ancho - margen, 70, 12, true, true, [191, 133, 66]);
+    texto(`Fecha comprometida: ${fechaComprometida}`, ancho - margen, 70, 12, true, true, [191, 133, 66]);
     texto(avisoCotizacion, margen, 92, 9, false, false, [108, 123, 120]);
     texto(`Fecha de emisión: ${fecha}`, margen, 116, 10);
     texto('Moneda: pesos chilenos (CLP)', ancho - margen, 116, 9, false, true, [108, 123, 120]);
@@ -156,7 +158,7 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
   texto(moneda(datos.total), ancho - margen - 16, y + 35, 18, true, true, [20, 76, 72]);
 
   y += 70;
-  texto(`* Esta cotización es válida hasta el ${vencimiento}.`, margen, y, 8.5, false, false, [108, 123, 120]);
+  texto(`* Fecha comprometida de entrega: ${fechaComprometida}.`, margen, y, 8.5, false, false, [108, 123, 120]);
   texto('* Los valores están sujetos a la confirmación de receta médica y disponibilidad de armazones o cristales.', margen, y + 13, 8.5, false, false, [108, 123, 120]);
 
   // Pie de página en todas las páginas

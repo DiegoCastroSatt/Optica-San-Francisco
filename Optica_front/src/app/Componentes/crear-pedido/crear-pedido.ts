@@ -35,7 +35,6 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
     this.pedidoForm = this.formBuilder.group({
       rut: ['', Validators.required],
       fecha: ['', Validators.required],
-      fechaVencimiento: [''],
       estado: ['Pendiente', Validators.required],
       productos: [''],
       servicios: [''],
@@ -154,7 +153,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
         rutCliente: rut,
         nombreCliente: clienteEncontrado?.nombreCompleto,
         fecha: formValue.fecha ?? '',
-        fechaVencimiento: formValue.fechaVencimiento ?? '',
+        fechaComprometida: formValue.fechaEntregaEstimada ?? '',
         total: Number(formValue.total),
         productos: formValue.productos ?? '',
         servicios: formValue.servicios ?? '',
@@ -212,17 +211,17 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
   }
 
   private validarDatosCotizacion(): string | null {
-    const { productos, servicios, fecha, fechaVencimiento } = this.pedidoForm.getRawValue();
+    const { productos, servicios, fecha, fechaEntregaEstimada } = this.pedidoForm.getRawValue();
 
     if (!productos?.trim() && !servicios?.trim()) {
       return 'Indica al menos un producto o servicio para generar la cotización.';
     }
-    if (!fechaVencimiento) {
-      this.pedidoForm.controls.fechaVencimiento.markAsTouched();
-      return 'Indica la fecha de vencimiento de la cotización.';
+    if (!fechaEntregaEstimada) {
+      this.pedidoForm.controls.fechaEntregaEstimada.markAsTouched();
+      return 'Indica la fecha comprometida de entrega para generar la cotización.';
     }
-    if (fecha && fechaVencimiento < fecha) {
-      return 'La fecha de vencimiento no puede ser anterior a la fecha de la cotización.';
+    if (fecha && fechaEntregaEstimada < fecha) {
+      return 'La fecha comprometida de entrega no puede ser anterior a la fecha del pedido.';
     }
     return null;
   }

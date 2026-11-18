@@ -38,9 +38,6 @@
             </div>
 
             <div class="form-group">
-              <label for="fechaVencimiento">Fecha de vencimiento de la cotización</label>
-              <input type="date" id="fechaVencimiento" formControlName="fechaVencimiento" class="form-control"
-                [min]="pedidoForm.controls.fecha.value">
               <label for="fechaEntregaEstimada">Fecha comprometida de entrega</label>
               <input type="date" id="fechaEntregaEstimada" formControlName="fechaEntregaEstimada" class="form-control">
             </div>
@@ -69,6 +66,12 @@
             </div>
 
             <div class="form-group">
+              <label for="anotaciones">Anotaciones Adicionales</label>
+              <textarea id="anotaciones" formControlName="anotaciones" class="form-control" rows="4"
+                placeholder="Anotaciones para el pedido..."></textarea>
+            </div>
+
+            <div class="form-group">
               <label for="total">Total a pagar (CLP)</label>
               <input type="number" id="total" formControlName="total" class="form-control" placeholder="0" min="1" step="1">
               @if (hasError('total', 'required')) {
@@ -78,12 +81,6 @@
               } @else if (hasError('total', 'pattern')) {
               <span class="error-text">El total debe ser un número entero, sin decimales</span>
               }
-            </div>
-
-            <div class="form-group">
-              <label for="anotaciones">Anotaciones Adicionales</label>
-              <textarea id="anotaciones" formControlName="anotaciones" class="form-control" rows="4"
-                placeholder="Anotaciones para el pedido..."></textarea>
             </div>
 
             <div class="form-actions">

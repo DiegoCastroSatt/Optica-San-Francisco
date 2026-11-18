@@ -25,13 +25,12 @@ describe('CrearPedidoComponent', () => {
   const formularioValido = (cambios: Record<string, unknown> = {}) => ({
     rut: '12345678-9',
     fecha: '2026-11-10',
-    fechaVencimiento: '2026-11-25',
     estado: 'Pendiente',
     productos: 'Armazón Ray-Ban Aviador',
     servicios: 'Montaje y ajuste',
     total: 45000,
     anotaciones: 'Cristales fotocromáticos con filtro azul',
-    fechaEntregaEstimada: '',
+    fechaEntregaEstimada: '2026-11-25',
     ...cambios
   });
 
@@ -216,15 +215,15 @@ describe('CrearPedidoComponent', () => {
     expect(fixture.componentInstance['errorMessage']()).toContain('al menos un producto o servicio');
   });
 
-  it('exige una fecha de vencimiento válida para generar la cotización', async () => {
+  it('exige una fecha comprometida de entrega válida para generar la cotización', async () => {
     const form = fixture.componentInstance['pedidoForm'];
 
-    form.setValue(formularioValido({ fechaVencimiento: '' }));
+    form.setValue(formularioValido({ fechaEntregaEstimada: '' }));
     await fixture.componentInstance['generarCotizacion']();
-    expect(fixture.componentInstance['errorMessage']()).toContain('fecha de vencimiento');
+    expect(fixture.componentInstance['errorMessage']()).toContain('fecha comprometida');
     expect(fixture.componentInstance['mostrarModalCotizacion']()).toBe(false);
 
-    form.setValue(formularioValido({ fecha: '2026-11-10', fechaVencimiento: '2026-11-01' }));
+    form.setValue(formularioValido({ fecha: '2026-11-10', fechaEntregaEstimada: '2026-11-01' }));
     await fixture.componentInstance['generarCotizacion']();
     expect(fixture.componentInstance['errorMessage']()).toContain('no puede ser anterior');
     expect(fixture.componentInstance['mostrarModalCotizacion']()).toBe(false);
@@ -313,12 +312,12 @@ describe('CrearPedidoComponent', () => {
       .toContain('El cliente no existe.');
   });
 
-  it('crea un PDF válido con la estructura de cotización, productos, servicios y vencimiento', async () => {
+  it('crea un PDF válido con la estructura de cotización, productos, servicios y fecha comprometida', async () => {
     const pdf = await crearCotizacionPedidoPdf({
       rutCliente: '12.345.678-9',
       nombreCliente: 'Ana Pérez',
       fecha: '2026-11-10',
-      fechaVencimiento: '2026-11-25',
+      fechaComprometida: '2026-11-25',
       total: 89990,
       productos: 'Armazón Ray-Ban Aviador RB3025 + Cristales Antirreflejo',
       servicios: 'Montaje y ajuste',
@@ -334,6 +333,7 @@ describe('CrearPedidoComponent', () => {
     expect(salida).toContain('PRODUCTOS / DETALLE COTIZADO');
     expect(salida).toContain('Armazón Ray-Ban Aviador RB3025');
     expect(salida).toContain('Montaje y ajuste');
+    expect(salida).toContain('Fecha comprometida');
     expect(salida).toContain('25/11/2026');
     expect(pdf.getNumberOfPages()).toBe(1);
   });
@@ -342,7 +342,7 @@ describe('CrearPedidoComponent', () => {
     const pdf = await crearCotizacionPedidoPdf({
       rutCliente: '12.345.678-9',
       fecha: '2026-11-10',
-      fechaVencimiento: '2026-11-25',
+      fechaComprometida: '2026-11-25',
       total: 5000,
       productos: 'Armazón'
     });
@@ -357,7 +357,7 @@ describe('CrearPedidoComponent', () => {
     const pdf = await crearCotizacionPedidoPdf({
       rutCliente: '12.345.678-9',
       fecha: '2026-11-10',
-      fechaVencimiento: '2026-11-25',
+      fechaComprometida: '2026-11-25',
       total: 100000,
       productos: Array.from({ length: 80 }, (_, i) => `Ítem ${i + 1}`).join('\n')
     });
