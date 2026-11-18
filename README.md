@@ -2,6 +2,12 @@
 
 Aplicación web para apoyar la operación de una óptica: administración de clientes, recetas, productos e inventario, ventas, pedidos y agenda de reservas. Busca centralizar información que facilita la atención y el seguimiento de productos y reservas.
 
+## Aplicación desplegada
+
+La aplicación se encuentra disponible en:
+
+🌐 **[Centro Óptico San Francisco](https://optica-san-francisco.onrender.com)**
+
 ## Arquitectura y tecnologías
 
 - **Frontend:** Angular 21, TypeScript y SSR de Angular.
