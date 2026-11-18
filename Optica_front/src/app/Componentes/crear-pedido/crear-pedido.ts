@@ -91,14 +91,26 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       anotacionesFinales = secciones.join('\n\n');
     }
 
-    this.pedidoService.crearPedido({
+    const payload: {
+      rut: string;
+      fecha: string;
+      estado: string;
+      total: number;
+      anotaciones?: string;
+      fechaEntregaEstimada?: string;
+    } = {
       rut: formValue.rut ?? '',
       fecha: formValue.fecha ?? '',
       estado: formValue.estado ?? 'Pendiente',
       total: formValue.total ?? 0,
-      anotaciones: formValue.anotaciones ?? '',
-      fechaEntregaEstimada: formValue.fechaEntregaEstimada || undefined
-    }).subscribe({
+      anotaciones: anotacionesFinales
+    };
+
+    if (formValue.fechaEntregaEstimada) {
+      payload.fechaEntregaEstimada = formValue.fechaEntregaEstimada;
+    }
+
+    this.pedidoService.crearPedido(payload).subscribe({
       next: () => {
         this.isSubmitting.set(false);
         this.successMessage.set('Pedido guardado exitosamente.');
