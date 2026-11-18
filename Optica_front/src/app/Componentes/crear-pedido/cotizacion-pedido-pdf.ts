@@ -30,8 +30,6 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
   const margen = 40;
   const limiteInferior = alto - 90;
 
-  // El peso chileno no tiene decimales; el separador de miles se arma a mano
-  // para no depender de las reglas de agrupación del locale.
   const moneda = (valor: number) =>
     '$' + String(Math.round(valor)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
@@ -55,11 +53,9 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
   };
 
   const encabezado = () => {
-    // Franja superior verde institucional
     pdf.setFillColor(20, 76, 72);
     pdf.rect(0, 0, ancho, 7, 'F');
 
-    // Acento dorado sutil
     pdf.setFillColor(191, 133, 66);
     pdf.rect(0, 7, ancho, 2, 'F');
 
@@ -87,8 +83,6 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
     }
   };
 
-  // Escribe un título y un texto largo línea por línea, saltando de página
-  // cuando hace falta (el título nunca queda solo al final de una página).
   const escribirBloque = (titulo: string, contenido: string, tamano: number, colorTitulo: number[]) => {
     asegurarEspacio(14 + 15);
     texto(titulo, margen + 12, y, 9, true, false, colorTitulo);
@@ -106,7 +100,6 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
     y += 10;
   };
 
-  // Cuadro con información del cliente
   pdf.setFillColor(248, 250, 249);
   pdf.setDrawColor(218, 228, 225);
   pdf.roundedRect(margen, y, ancho - margen * 2, 48, 4, 4, 'FD');
@@ -118,7 +111,6 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
 
   y += 68;
 
-  // Cabecera de la tabla de detalle
   asegurarEspacio(26 + 14 + 15);
   pdf.setFillColor(232, 241, 239);
   pdf.rect(margen, y, ancho - margen * 2, 26, 'F');
@@ -148,7 +140,6 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
     y += 6;
   }
 
-  // Resumen del total
   asegurarEspacio(110);
 
   pdf.setFillColor(240, 246, 244);
@@ -161,7 +152,6 @@ export async function crearCotizacionPedidoPdf(datos: CotizacionPedidoDatos) {
   texto(`* Fecha comprometida de entrega: ${fechaComprometida}.`, margen, y, 8.5, false, false, [108, 123, 120]);
   texto('* Los valores están sujetos a la confirmación de receta médica y disponibilidad de armazones o cristales.', margen, y + 13, 8.5, false, false, [108, 123, 120]);
 
-  // Pie de página en todas las páginas
   const paginas = pdf.getNumberOfPages();
   for (let pagina = 1; pagina <= paginas; pagina++) {
     pdf.setPage(pagina);

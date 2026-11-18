@@ -49,42 +49,49 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 12px;
 }
 
 .btn-cotizacion {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 18px;
-  border: 1px solid var(--color-principal);
+  min-height: 44px;
+  padding: 12px 24px;
+  border: 0;
   border-radius: 4px;
-  background: transparent;
-  color: var(--color-principal);
+  background: var(--color-acento);
+  color: var(--color-superficie-calida);
   font-family: inherit;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
 .btn-cotizacion:hover:not(:disabled) {
-  background: var(--color-fondo);
+  background: var(--color-acento-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
 }
 
 .btn-cotizacion:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-principal) 18%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--color-principal) 30%, transparent);
+  outline-offset: 2px;
 }
 
 .btn-cotizacion:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 600px) {
   .form-actions {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
   }
 

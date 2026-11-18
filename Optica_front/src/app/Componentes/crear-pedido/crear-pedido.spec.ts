@@ -126,8 +126,7 @@ describe('CrearPedidoComponent', () => {
       fechaEntregaEstimada: ''
     }));
 
-    const formulario = fixture.nativeElement.querySelector('form') as HTMLFormElement;
-    formulario.dispatchEvent(new Event('submit'));
+    fixture.componentInstance['submitPedido']();
     fixture.detectChanges();
 
     expect(servicio.crearPedido).toHaveBeenCalledWith({

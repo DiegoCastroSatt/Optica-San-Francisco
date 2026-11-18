@@ -123,7 +123,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
     const rut = formValue.rut?.trim() ?? '';
 
     if (!rut) {
-      this.pedidoForm.controls.rut.markAsTouched();
+      this.pedidoForm.markAllAsTouched();
       this.errorMessage.set('Ingresa el RUT del cliente para generar la cotización.');
       return;
     }
