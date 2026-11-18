@@ -107,6 +107,12 @@ public class PedidoService : IPedidoService
         return MarcarVencidos(await _pedidoRepository.ObtenerPedidosDetallePorRutAsync(cliente.Rut));
     }
 
+    public async Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosPorClienteIdAsync(int idCliente)
+    {
+        var pedidos = await _pedidoRepository.ObtenerPedidosDetallePorClienteIdAsync(idCliente);
+        return MarcarVencidos(pedidos);
+    }
+
     public async Task<PedidoResponseDto> CrearPedidoAsync(CreatePedidoDto dto)
     {
         if (!RutChilenoValidator.EsValido(dto.Rut))

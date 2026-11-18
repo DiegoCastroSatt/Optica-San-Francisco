@@ -17,6 +17,8 @@ public interface IPedidoRepository
     Task<Cliente?> ObtenerClientePorRutAsync(string rut);
     Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetallePorRutAsync(string rut)
         => throw new NotSupportedException("La consulta de historial por RUT no está implementada en este repositorio.");
+    Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetallePorClienteIdAsync(int idCliente)
+        => throw new NotSupportedException("La consulta de pedidos por ID de cliente no está implementada en este repositorio.");
     Task<Pedido> CrearPedidoAsync(Pedido pedido);
     Task<Pedido?> ObtenerPedidoPorIdAsync(int id);
     Task<Pedido?> ObtenerPedidoPorIdParaActualizarAsync(int id) => ObtenerPedidoPorIdAsync(id);

@@ -56,6 +56,12 @@ export class PedidoService {
     return this.http.get<ClienteOption[]>(`${this.apiUrl}/clientes/buscar`, { params: { rut } });
   }
 
+  obtenerMisPedidos(): Observable<PedidoResponse[]> {
+    return this.http.get<PedidoResponse[]>(`${this.apiUrl}/mis-pedidos`, {
+      withCredentials: true
+    });
+  }
+
   obtenerPedidosPorRut(rut: string): Observable<PedidoResponse[]> {
     return this.http.get<PedidoResponse[]>(`${this.apiUrl}/cliente/${encodeURIComponent(rut)}`);
   }

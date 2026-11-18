@@ -1,12 +1,13 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Optica.Api.Modules.Accesos;
 using Microsoft.AspNetCore.Mvc;
+using Optica.Api.Modules.Autenticacion.Controllers;
 using Optica.Api.Modules.Pedidos.DTOs;
 using Optica.Api.Modules.Pedidos.Interfaces;
 
 namespace Optica.Api.Modules.Pedidos.Controllers;
 
-[Authorize(Policy = "pedidos")]
 [ApiController]
 [Route("api/[controller]")]
 public class PedidosController : ControllerBase
@@ -18,6 +19,18 @@ public class PedidosController : ControllerBase
         _pedidoService = pedidoService;
     }
 
+    [Authorize(Policy = AutenticacionClientesController.Politica)]
+    [HttpGet("mis-pedidos")]
+    public async Task<IActionResult> ObtenerMisPedidos()
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var idCliente))
+            return Unauthorized();
+
+        var pedidos = await _pedidoService.ObtenerPedidosPorClienteIdAsync(idCliente);
+        return Ok(pedidos);
+    }
+
+    [Authorize(Policy = "pedidos")]
     [HttpGet]
     public async Task<IActionResult> GetPedidos()
     {
@@ -25,6 +38,7 @@ public class PedidosController : ControllerBase
         return Ok(pedidos);
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpGet("pagina")]
     public async Task<IActionResult> GetPagina(
         [FromQuery] int pagina = 1, [FromQuery] int tamano = 20, [FromQuery] string? termino = null)
@@ -35,6 +49,7 @@ public class PedidosController : ControllerBase
         return Ok(await _pedidoService.ObtenerPaginaAsync(pagina, tamano, termino ?? string.Empty));
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpGet("clientes/buscar")]
     public async Task<IActionResult> BuscarClientesPorRut([FromQuery] string rut)
     {
@@ -42,6 +57,7 @@ public class PedidosController : ControllerBase
         return Ok(clientes);
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpGet("clientes")]
     public async Task<IActionResult> GetClientes()
     {
@@ -49,6 +65,7 @@ public class PedidosController : ControllerBase
         return Ok(clientes);
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpGet("cliente/{rut}")]
     public async Task<IActionResult> GetPedidosPorRut(string rut)
     {
@@ -67,6 +84,7 @@ public class PedidosController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetPedidoById(int id)
     {
@@ -76,6 +94,7 @@ public class PedidosController : ControllerBase
         return Ok(pedido);
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpPost]
     public async Task<IActionResult> CreatePedido([FromBody] CreatePedidoDto dto)
     {
@@ -90,6 +109,7 @@ public class PedidosController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "pedidos")]
     [HttpPatch("{id}/estado")]
     public async Task<IActionResult> UpdateEstado(int id, [FromBody] UpdateEstadoPedidoDto dto)
     {

@@ -19,6 +19,7 @@ describe('ConsultarPedidoComponent', () => {
   let fixture: ComponentFixture<ConsultarPedidoComponent>;
   let pedidoServiceMock: {
     obtenerPedidosPorRut: ReturnType<typeof vi.fn>;
+    obtenerMisPedidos: ReturnType<typeof vi.fn>;
   };
   let authServiceMock: {
     cliente: ReturnType<typeof signal<ClienteSesion | null>>;
@@ -45,7 +46,8 @@ describe('ConsultarPedidoComponent', () => {
 
   beforeEach(() => {
     pedidoServiceMock = {
-      obtenerPedidosPorRut: vi.fn(() => of(pedidosMock))
+      obtenerPedidosPorRut: vi.fn(() => of(pedidosMock)),
+      obtenerMisPedidos: vi.fn(() => of(pedidosMock))
     };
     authServiceMock = {
       cliente: signal<ClienteSesion | null>({
@@ -77,10 +79,10 @@ describe('ConsultarPedidoComponent', () => {
     fixture.detectChanges();
   };
 
-  it('consulta pedidos usando el RUT de la sesión cuando el cliente está autenticado', async () => {
+  it('consulta pedidos del cliente autenticado a través de obtenerMisPedidos', async () => {
     await crearComponente();
 
-    expect(pedidoServiceMock.obtenerPedidosPorRut).toHaveBeenCalledWith('206608730');
+    expect(pedidoServiceMock.obtenerMisPedidos).toHaveBeenCalled();
     expect(fixture.nativeElement.querySelector('.pedidos-section')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.no-session')).toBeNull();
   });
@@ -94,7 +96,7 @@ describe('ConsultarPedidoComponent', () => {
   });
 
   it('muestra el mensaje "No tiene pedidos activos" cuando el cliente no registra pedidos', async () => {
-    pedidoServiceMock.obtenerPedidosPorRut = vi.fn(() => of([]));
+    pedidoServiceMock.obtenerMisPedidos = vi.fn(() => of([]));
     await crearComponente();
 
     const emptyTitle = fixture.nativeElement.querySelector('.empty-title');

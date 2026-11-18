@@ -174,4 +174,13 @@ public class PedidoRepository : IPedidoRepository
             .ThenByDescending(p => p.IdPedido)
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetallePorClienteIdAsync(int idCliente)
+    {
+        var cliente = await _context.Clientes.FindAsync(idCliente);
+        if (cliente == null)
+            return Enumerable.Empty<PedidoResponseDto>();
+
+        return await ObtenerPedidosDetallePorRutAsync(cliente.Rut);
+    }
 }
