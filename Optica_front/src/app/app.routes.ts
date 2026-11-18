@@ -7,9 +7,7 @@ import {
   InicioPersonalComponent,
   SinAccesoComponent,
 } from './Componentes/inicio-personal/inicio-personal';
-import { ProbadorMarcosComponent } from './Componentes/probador-marcos/probador-marcos';
 import { RecomendadorMarcosComponent } from './Componentes/recomendador-marcos/recomendador-marcos';
-import { VerVentasComponent } from './Componentes/ver-ventas/ver-ventas';
 import { Routes } from '@angular/router';
 import { ReservaComponent } from './Componentes/reserva/reserva';
 import { BuscarReservas } from './Componentes/buscar-reservas/buscar-reservas';
@@ -24,13 +22,11 @@ import { RegistroRecetaComponent } from './Componentes/registro-receta/registro-
 import { BuscarProductoCliente } from './Componentes/buscar-producto-cliente/buscar-producto-cliente';
 import { BuscarProductoAdmin } from './Componentes/buscar-producto-admin/buscar-producto-admin';
 import { PedidoComponent } from './Componentes/pedido/pedido';
-import { CrearPedidoComponent } from './Componentes/crear-pedido/crear-pedido';
 import { DetallePedidoComponent } from './Componentes/detalle-pedido/detalle-pedido';
 import { ClientesComponent } from './Componentes/clientes/clientes';
 import { authAdminGuard } from './guards/auth-admin-guard';
 import { LoginComponent } from './Componentes/autenticacion/login/login';
 import { DashboardComponent } from './Componentes/dashboard/dashboard';
-import { ConsultarStock } from './Componentes/consultar-stock/consultar-stock';
 import { HistorialGraduaciones } from './Componentes/historial-graduaciones/historial-graduaciones';
 import { EnTrabajoComponent } from './Componentes/en-trabajo/en-trabajo';
 import { authClienteGuard } from './guards/auth-cliente-guard';
@@ -64,7 +60,7 @@ export const routes: Routes = [
       { path: 'cliente/en-trabajo', component: EnTrabajoComponent, canActivate: [authClienteGuard], data: { titulo: 'Portal del cliente' } },
       { path: 'inicio', component: InicioClienteComponent },
       { path: 'reservas', component: ReservaComponent },
-      { path: 'probador-marcos', component: ProbadorMarcosComponent },
+      { path: 'probador-marcos', loadComponent: () => import('./Componentes/probador-marcos/probador-marcos').then(m => m.ProbadorMarcosComponent) },
       { path: 'recomendador-marcos', component: RecomendadorMarcosComponent },
       { path: 'productos', component: BuscarProductoCliente },
       { path: 'consultar-pedido', component: ConsultarPedidoComponent, canActivate: [authClienteGuard] },
@@ -112,7 +108,7 @@ export const routes: Routes = [
           },
           { path: 'clientes', component: ClientesComponent, data: { permiso: 'clientes', tituloInicio: 'Clientes' } },
           { path: 'productos', component: BuscarProductoAdmin, data: { permiso: 'inventario', tituloInicio: 'Inventario' } },
-          { path: 'stock', component: ConsultarStock, data: { permiso: 'inventario' } },
+          { path: 'stock', loadComponent: () => import('./Componentes/consultar-stock/consultar-stock').then(m => m.ConsultarStock), data: { permiso: 'inventario' } },
           { path: 'solicitudes', component: SolicitudesAdmin, data: { permiso: 'inventario' } },
           { path: 'marcos', component: GestionMarcosComponent, data: { permiso: 'inventario' } },
           { path: 'marcos/crear', component: CrearMarcoComponent, data: { permiso: 'inventario' } },
@@ -120,7 +116,7 @@ export const routes: Routes = [
           { path: 'rostros', redirectTo: 'marcos/rostros', pathMatch: 'full' },
           { path: 'pedidos/historial', component: HistorialPedidosComponent, data: { permiso: 'pedidos' } },
           { path: 'ventas', component: RegistroVentaComponent, data: { permiso: 'ventas', tituloInicio: 'Ventas' } },
-          { path: 'ventas/historial', component: VerVentasComponent, data: { permiso: 'ventas' } },
+          { path: 'ventas/historial', loadComponent: () => import('./Componentes/ver-ventas/ver-ventas').then(m => m.VerVentasComponent), data: { permiso: 'ventas' } },
           { path: 'recetas', component: RegistroRecetaComponent, data: { permiso: 'recetas', tituloInicio: 'Recetas' } },
           {
             path: 'recetas/cliente',
@@ -133,7 +129,7 @@ export const routes: Routes = [
             data: { permiso: 'recetas' },
           },
           { path: 'pedido', component: PedidoComponent, data: { permiso: 'pedidos', tituloInicio: 'Pedidos' } },
-          { path: 'crear-pedido', component: CrearPedidoComponent, data: { permiso: 'pedidos' } },
+          { path: 'crear-pedido', loadComponent: () => import('./Componentes/crear-pedido/crear-pedido').then(m => m.CrearPedidoComponent), data: { permiso: 'pedidos' } },
           { path: 'pedido/:id', component: DetallePedidoComponent, data: { permiso: 'pedidos' } },
           {
             path: 'historial-graduaciones',

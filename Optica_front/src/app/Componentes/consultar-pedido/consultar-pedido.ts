@@ -21,19 +21,19 @@ export class ConsultarPedidoComponent implements OnInit {
 
   ngOnInit(): void {
     const sesionCliente = this.authService.cliente();
-    if (sesionCliente?.rut) {
-      this.rutCliente.set(sesionCliente.rut);
-      this.cargarPedidos(sesionCliente.rut);
+    if (sesionCliente) {
+      this.rutCliente.set(sesionCliente.rut ?? 'activo');
+      this.cargarPedidos();
     } else {
       this.rutCliente.set(null);
     }
   }
 
-  private cargarPedidos(rut: string): void {
+  private cargarPedidos(): void {
     this.cargando.set(true);
     this.error.set(null);
 
-    this.pedidoService.obtenerPedidosPorRut(rut).subscribe({
+    this.pedidoService.obtenerMisPedidos().subscribe({
       next: (pedidos) => {
         this.pedidos.set(pedidos);
         this.cargando.set(false);

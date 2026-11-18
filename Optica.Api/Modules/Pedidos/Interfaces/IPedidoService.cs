@@ -12,6 +12,8 @@ public interface IPedidoService
         => throw new NotSupportedException("La búsqueda de clientes por RUT no está implementada en este servicio.");
     Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosPorRutAsync(string rut)
         => throw new NotSupportedException("La consulta del historial por RUT no está implementada en este servicio.");
+    Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosPorClienteIdAsync(int idCliente)
+        => throw new NotSupportedException("La consulta de pedidos por ID de cliente no está implementada en este servicio.");
     Task<PedidoResponseDto> CrearPedidoAsync(CreatePedidoDto dto);
     Task<PedidoResponseDto?> ObtenerPedidoPorIdAsync(int id);
     Task<PedidoResponseDto> ActualizarEstadoAsync(int id, UpdateEstadoPedidoDto dto);

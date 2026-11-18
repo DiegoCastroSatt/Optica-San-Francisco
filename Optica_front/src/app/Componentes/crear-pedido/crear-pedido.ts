@@ -1,8 +1,9 @@
 import { AutocompletadoRut } from '../../shared/components/autocompletado-rut/autocompletado-rut';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { PedidoService, ClienteOption } from '../pedido/pedido.service';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-crear-pedido',
@@ -10,24 +11,35 @@ import { PedidoService, ClienteOption } from '../pedido/pedido.service';
   templateUrl: './crear-pedido.html',
   styleUrl: './crear-pedido.css'
 })
-export class CrearPedidoComponent implements OnInit {
+export class CrearPedidoComponent implements OnInit, OnDestroy {
   protected readonly isSubmitting = signal(false);
+  protected readonly generandoCotizacion = signal(false);
+  protected readonly mostrarModalCotizacion = signal(false);
+  protected readonly pdfPreviewUrl = signal<SafeResourceUrl | null>(null);
   protected readonly errorMessage = signal('');
   protected readonly successMessage = signal('');
   protected readonly clientes = signal<ClienteOption[]>([]);
+
+  private pdfRawUrl: string | null = null;
+  private pdfNombreArchivo = 'cotizacion-pedido.pdf';
+  private redireccionTimeout?: ReturnType<typeof setTimeout>;
 
   protected readonly pedidoForm;
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly pedidoService: PedidoService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly sanitizer: DomSanitizer
   ) {
     this.pedidoForm = this.formBuilder.group({
       rut: ['', Validators.required],
       fecha: ['', Validators.required],
       estado: ['Pendiente', Validators.required],
-      total: [0, [Validators.required, Validators.min(0)]],
+      productos: [''],
+      servicios: [''],
+      // El total lo ingresa el empleado: el sistema no lo calcula ni lo estima.
+      total: [null as number | null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]],
       anotaciones: [''],
       fechaEntregaEstimada: ['']
     });
@@ -38,6 +50,21 @@ export class CrearPedidoComponent implements OnInit {
       next: (clientes) => this.clientes.set(clientes),
       error: () => this.errorMessage.set('No se pudieron cargar los clientes.')
     });
+  }
+
+  ngOnDestroy(): void {
+    clearTimeout(this.redireccionTimeout);
+    if (this.pdfRawUrl) {
+      URL.revokeObjectURL(this.pdfRawUrl);
+      this.pdfRawUrl = null;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  protected alPulsarEscape(): void {
+    if (this.mostrarModalCotizacion()) {
+      this.cerrarModalCotizacion();
+    }
   }
 
   protected submitPedido(): void {
@@ -51,19 +78,46 @@ export class CrearPedidoComponent implements OnInit {
     this.errorMessage.set('');
     this.successMessage.set('');
 
-    this.pedidoService.crearPedido({
+    const productos = formValue.productos?.trim() ?? '';
+    const servicios = formValue.servicios?.trim() ?? '';
+    const anotaciones = formValue.anotaciones?.trim() ?? '';
+
+    let anotacionesFinales = anotaciones;
+    if (productos || servicios) {
+      const secciones: string[] = [];
+      if (productos) secciones.push(`Productos:\n${productos}`);
+      if (servicios) secciones.push(`Servicios:\n${servicios}`);
+      if (anotaciones) secciones.push(`Anotaciones:\n${anotaciones}`);
+      anotacionesFinales = secciones.join('\n\n');
+    }
+
+    const payload: {
+      rut: string;
+      fecha: string;
+      estado: string;
+      total: number;
+      anotaciones?: string;
+      fechaEntregaEstimada?: string;
+    } = {
       rut: formValue.rut ?? '',
       fecha: formValue.fecha ?? '',
       estado: formValue.estado ?? 'Pendiente',
       total: formValue.total ?? 0,
-      anotaciones: formValue.anotaciones ?? '',
-      fechaEntregaEstimada: formValue.fechaEntregaEstimada || undefined
-    }).subscribe({
+      anotaciones: anotacionesFinales
+    };
+
+    if (formValue.fechaEntregaEstimada) {
+      payload.fechaEntregaEstimada = formValue.fechaEntregaEstimada;
+    }
+
+    this.pedidoService.crearPedido(payload).subscribe({
       next: () => {
         this.isSubmitting.set(false);
         this.successMessage.set('Pedido guardado exitosamente.');
-        this.pedidoForm.reset();
-        setTimeout(() => this.router.navigate(['/admin/panel/pedido']), 2000);
+        // El modal solo se cierra cuando el guardado fue exitoso.
+        this.cerrarModalCotizacion();
+        this.pedidoForm.reset({ estado: 'Pendiente', total: null });
+        this.redireccionTimeout = setTimeout(() => this.router.navigate(['/admin/panel/pedido']), 2000);
       },
       error: (error: { error?: { mensaje?: string } }) => {
         this.errorMessage.set(
@@ -74,8 +128,113 @@ export class CrearPedidoComponent implements OnInit {
     });
   }
 
+  protected async generarCotizacion(): Promise<void> {
+    if (this.generandoCotizacion()) return;
+
+    const formValue = this.pedidoForm.getRawValue();
+    const rut = formValue.rut?.trim() ?? '';
+
+    if (!rut) {
+      this.pedidoForm.markAllAsTouched();
+      this.errorMessage.set('Ingresa el RUT del cliente para generar la cotización.');
+      return;
+    }
+
+    if (this.pedidoForm.invalid) {
+      this.pedidoForm.markAllAsTouched();
+      this.errorMessage.set('Completa los datos obligatorios (fecha y un total mayor a 0) para generar la cotización.');
+      return;
+    }
+
+    const errorCotizacion = this.validarDatosCotizacion();
+    if (errorCotizacion) {
+      this.errorMessage.set(errorCotizacion);
+      return;
+    }
+
+    this.generandoCotizacion.set(true);
+    this.errorMessage.set('');
+
+    try {
+      const clienteEncontrado = this.clientes().find(
+        (c) => c.Rut.replace(/[.-]/g, '').toUpperCase() === rut.replace(/[.-]/g, '').toUpperCase()
+      );
+
+      const { crearCotizacionPedidoPdf } = await import('./cotizacion-pedido-pdf');
+      const pdf = await crearCotizacionPedidoPdf({
+        rutCliente: rut,
+        nombreCliente: clienteEncontrado?.nombreCompleto,
+        fecha: formValue.fecha ?? '',
+        fechaComprometida: formValue.fechaEntregaEstimada ?? '',
+        total: Number(formValue.total),
+        productos: formValue.productos ?? '',
+        servicios: formValue.servicios ?? '',
+        anotaciones: formValue.anotaciones ?? ''
+      });
+
+      const blob = pdf.output('blob');
+      const rutLimpio = rut.replace(/[.-]/g, '');
+      this.pdfNombreArchivo = `cotizacion-pedido-${rutLimpio || 'cliente'}.pdf`;
+
+      if (this.pdfRawUrl) {
+        URL.revokeObjectURL(this.pdfRawUrl);
+      }
+      this.pdfRawUrl = URL.createObjectURL(blob);
+      this.pdfPreviewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(this.pdfRawUrl));
+      this.mostrarModalCotizacion.set(true);
+    } catch {
+      this.errorMessage.set('No se pudo generar el archivo PDF de la cotización.');
+    } finally {
+      this.generandoCotizacion.set(false);
+    }
+  }
+
+  protected cerrarModalCotizacion(): void {
+    this.mostrarModalCotizacion.set(false);
+    if (this.pdfRawUrl) {
+      URL.revokeObjectURL(this.pdfRawUrl);
+      this.pdfRawUrl = null;
+    }
+    this.pdfPreviewUrl.set(null);
+  }
+
+  protected descargarCotizacion(): void {
+    if (!this.pdfRawUrl) return;
+    const enlace = document.createElement('a');
+    enlace.href = this.pdfRawUrl;
+    enlace.download = this.pdfNombreArchivo;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+  }
+
+  protected abrirCotizacionEnPestana(): void {
+    if (!this.pdfRawUrl) return;
+    window.open(this.pdfRawUrl, '_blank', 'noopener');
+  }
+
+  protected finalizarPedidoDesdeModal(): void {
+    this.submitPedido();
+  }
+
   protected hasError(controlName: string, error: string): boolean {
     const control = this.pedidoForm.get(controlName);
     return Boolean(control?.touched && control.hasError(error));
+  }
+
+  private validarDatosCotizacion(): string | null {
+    const { productos, servicios, fecha, fechaEntregaEstimada } = this.pedidoForm.getRawValue();
+
+    if (!productos?.trim() && !servicios?.trim()) {
+      return 'Indica al menos un producto o servicio para generar la cotización.';
+    }
+    if (!fechaEntregaEstimada) {
+      this.pedidoForm.controls.fechaEntregaEstimada.markAsTouched();
+      return 'Indica la fecha comprometida de entrega para generar la cotización.';
+    }
+    if (fecha && fechaEntregaEstimada < fecha) {
+      return 'La fecha comprometida de entrega no puede ser anterior a la fecha del pedido.';
+    }
+    return null;
   }
 }
