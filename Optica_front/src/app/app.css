@@ -535,6 +535,10 @@ app-cliente {
   grid-column: span 2;
 }
 
+:where(app-registro-receta) .graduacion-grid {
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+}
+
 :where(app-producto, app-registro-receta, app-reserva) label {
   display: block;
   margin-bottom: 8px;
