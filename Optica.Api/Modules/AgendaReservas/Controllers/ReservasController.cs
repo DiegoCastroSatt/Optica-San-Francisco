@@ -5,6 +5,8 @@ using System.Globalization;
 using Optica.Api.Modules.AgendaReservas.DTOs;
 using Optica.Api.Modules.AgendaReservas.Models;
 using System.Text.Encodings.Web;
+using Optica.Api.Modules.AgendaReservas.Interfaces;
+using Optica.Api.Modules.Clientes.Services;
 
 [Authorize(Policy = "agenda")]
 [ApiController]
@@ -12,11 +14,14 @@ using System.Text.Encodings.Web;
 public class ReservasController : ControllerBase
 {
     private readonly IReservaService _reservaService;
+    private readonly IIdentidadClienteAutenticado _identidadCliente;
 
     public ReservasController(
-        IReservaService reservaService)
+        IReservaService reservaService,
+        IIdentidadClienteAutenticado identidadCliente)
     {
         _reservaService = reservaService;
+        _identidadCliente = identidadCliente;
     }
 
     [AllowAnonymous]
@@ -94,6 +99,17 @@ public class ReservasController : ControllerBase
     {
         try
         {
+            var clienteAutenticado = await _identidadCliente.ObtenerAsync(HttpContext, cancellationToken);
+            if (clienteAutenticado is not null)
+            {
+                var rutCoincide = RutChilenoValidator.Normalizar(dto.Rut) == RutChilenoValidator.Normalizar(clienteAutenticado.Rut);
+                var correoCoincide = string.Equals((dto.Correo ?? string.Empty).Trim(), (clienteAutenticado.Correo ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
+                if (!rutCoincide || !correoCoincide)
+                {
+                    return BadRequest(new { mensaje = "Los datos ingresados no coinciden con tu cuenta. Actualiza tu perfil o inicia sesión con la cuenta correcta." });
+                }
+            }
+
             var reserva =
                 await _reservaService.CrearReserva(dto, cancellationToken);
 
