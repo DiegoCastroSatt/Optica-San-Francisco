@@ -65,6 +65,7 @@ builder.Services.AddCors(options =>
 
 // Implementación temporal hasta configurar la base de datos.
 builder.Services.AddScoped<IReservaRepository, ReservaRepository>();
+builder.Services.AddScoped<IIdentidadClienteAutenticado, IdentidadClienteAutenticado>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IReservaCorreoService, ReservaCorreoService>();
 builder.Services.AddSingleton<ColaCorreosReprogramacion>();

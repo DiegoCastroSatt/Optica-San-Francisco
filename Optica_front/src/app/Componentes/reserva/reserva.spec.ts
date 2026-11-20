@@ -1,8 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ReservaComponent } from './reserva';
 import { ReservaService } from './reserva.service';
+import { AutenticacionClienteService } from '../../shared/services/autenticacion-cliente.service';
 
 describe('Reservas', () => {
   const horarios = [
@@ -18,9 +21,15 @@ describe('Reservas', () => {
     servicio.crearReserva.mockReturnValue(of({ id: 1, fecha: '2026-09-22', hora: '09:00', estado: 'Pendiente', correoEnviado: true }));
     await TestBed.configureTestingModule({
       imports: [ReservaComponent],
-      providers: [{ provide: ReservaService, useValue: servicio }]
+      providers: [
+        { provide: ReservaService, useValue: servicio },
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
     }).compileComponents();
   });
+
+  afterEach(() => TestBed.inject(HttpTestingController).verify());
 
   function preparar() {
     const fixture = TestBed.createComponent(ReservaComponent);
@@ -144,5 +153,27 @@ describe('Reservas', () => {
 
     expect(dom.textContent).toContain('Ya tienes una reserva activa para esta fecha');
     expect(dom.textContent).not.toContain('Reserva registrada, Ana Pérez');
+  });
+  it('prellena y bloquea los datos de contacto cuando el cliente tiene sesión iniciada', () => {
+    TestBed.inject(AutenticacionClienteService).cliente.set({ idCliente: 1, nombre: 'Ana', correo: 'ana@example.com' });
+    const { fixture, dom } = preparar();
+
+    const peticion = TestBed.inject(HttpTestingController).expectOne('http://localhost:8080/api/Clientes/perfil');
+    expect(peticion.request.withCredentials).toBe(true);
+    peticion.flush({ rut: '12.345.678-5', nombre: 'Ana', apellido: 'Pérez', telefono: '+56 9 1234 5678', correo: 'ana@example.com', estado: 'Activo' });
+    fixture.detectChanges();
+
+    const nombre = dom.querySelector<HTMLInputElement>('#name')!;
+    const rut = dom.querySelector<HTMLInputElement>('#rut')!;
+    expect(nombre.value).toBe('Ana Pérez');
+    expect(rut.value).toBe('12.345.678-5');
+    expect(nombre.disabled).toBe(true);
+    expect(rut.disabled).toBe(true);
+    expect(dom.textContent).toContain('Usamos los datos de tu cuenta');
+  });
+
+  it('no pide datos de cuenta cuando nadie inició sesión', () => {
+    preparar();
+    TestBed.inject(HttpTestingController).expectNone('http://localhost:8080/api/Clientes/perfil');
   });
 });

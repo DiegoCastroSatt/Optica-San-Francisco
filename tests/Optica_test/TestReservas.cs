@@ -10,6 +10,7 @@ using Optica.Api.Modules.AgendaReservas.Services;
 using Optica.Api.Modules.Notificaciones.Interfaces;
 using Xunit;
 using Microsoft.AspNetCore.DataProtection;
+using Optica.Api.Modules.Clientes.DTOs;
 
 namespace Optica.Ventas.Tests;
 
@@ -172,7 +173,7 @@ public class TestReservas
     public void AbrirEnlaceDeCancelacion_NoCancelaHastaLaConfirmacionExplicita()
     {
         var repositorio = CrearRepositorioAccion("confirmar-seguro", "cancelar-seguro");
-        var controlador = new ReservasController(CrearServicio(repositorio))
+        var controlador = new ReservasController(CrearServicio(repositorio), new IdentidadClientePrueba())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -188,7 +189,7 @@ public class TestReservas
     public async Task ConfirmarDesdeCorreo_ActualizaLaReservaYDevuelveResultado()
     {
         var repositorio = CrearRepositorioAccion("confirmar-seguro", "cancelar-seguro");
-        var controlador = new ReservasController(CrearServicio(repositorio))
+        var controlador = new ReservasController(CrearServicio(repositorio), new IdentidadClientePrueba())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -203,7 +204,7 @@ public class TestReservas
     public async Task CancelarDesdeCorreo_ActualizaLaReservaYLiberarHorario()
     {
         var repositorio = CrearRepositorioAccion("confirmar-seguro", "cancelar-seguro");
-        var controlador = new ReservasController(CrearServicio(repositorio))
+        var controlador = new ReservasController(CrearServicio(repositorio), new IdentidadClientePrueba())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -213,6 +214,82 @@ public class TestReservas
         Assert.Equal("Cancelada", repositorio.EstadoReserva);
         Assert.Equal("Habilitada", repositorio.Horarios.Single(h => h.Id == 12).Estado);
         Assert.Contains("hora quedó liberada", System.Net.WebUtility.HtmlDecode(respuesta.Content));
+    }
+
+    [Fact]
+    public async Task CrearReserva_ConSesionYDatosDeLaCuenta_GuardaLaReserva()
+    {
+        var repositorio = new ReservaRepositorioPrueba();
+        var identidad = new IdentidadClientePrueba
+        {
+            Perfil = new PerfilClienteDto { Rut = "12345678-5", Nombre = "Ana", Apellido = "Pérez", Correo = "ana@example.com", Estado = "Activo" }
+        };
+        var controlador = new ReservasController(CrearServicio(repositorio), identidad)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var resultado = await controlador.CrearReserva(new CrearReservaDto
+        {
+            NombreCompleto = "Ana Pérez",
+            Rut = "12.345.678-5",
+            Telefono = "9 1234 5678",
+            Correo = "ana@example.com",
+            IdHorario = 12
+        }, CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(resultado);
+        Assert.NotNull(repositorio.UltimaSolicitud);
+    }
+
+    [Fact]
+    public async Task CrearReserva_ConSesionYDatosQueNoCoincidenConLaCuenta_RechazaLaReserva()
+    {
+        var repositorio = new ReservaRepositorioPrueba();
+        var identidad = new IdentidadClientePrueba
+        {
+            Perfil = new PerfilClienteDto { Rut = "12345678-5", Nombre = "Ana", Apellido = "Pérez", Correo = "ana@example.com", Estado = "Activo" }
+        };
+        var controlador = new ReservasController(CrearServicio(repositorio), identidad)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var resultado = await controlador.CrearReserva(new CrearReservaDto
+        {
+            NombreCompleto = "Otra Persona",
+            Rut = "11.111.111-1",
+            Telefono = "9 1234 5678",
+            Correo = "otra.persona@example.com",
+            IdHorario = 12
+        }, CancellationToken.None);
+
+        var rechazo = Assert.IsType<BadRequestObjectResult>(resultado);
+        Assert.Contains("no coinciden con tu cuenta", rechazo.Value!.ToString());
+        Assert.Null(repositorio.UltimaSolicitud);
+    }
+
+    [Fact]
+    public async Task CrearReserva_SinSesionIniciada_AceptaCualquierDato()
+    {
+        var repositorio = new ReservaRepositorioPrueba();
+        var identidad = new IdentidadClientePrueba { Perfil = null };
+        var controlador = new ReservasController(CrearServicio(repositorio), identidad)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var resultado = await controlador.CrearReserva(new CrearReservaDto
+        {
+            NombreCompleto = "Visitante",
+            Rut = "12.345.678-5",
+            Telefono = "9 1234 5678",
+            Correo = "visitante@example.com",
+            IdHorario = 12
+        }, CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(resultado);
+        Assert.NotNull(repositorio.UltimaSolicitud);
     }
 
     [Fact]
@@ -840,4 +917,12 @@ internal sealed class ReservaCorreoPrueba : IReservaCorreoService
         RecordatoriosEnviados.Add(reserva);
         return Task.FromResult(EnvioCorrecto);
     }
+}
+
+internal sealed class IdentidadClientePrueba : IIdentidadClienteAutenticado
+{
+    public PerfilClienteDto? Perfil { get; set; }
+
+    public Task<PerfilClienteDto?> ObtenerAsync(HttpContext httpContext, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Perfil);
 }
