@@ -5,6 +5,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { validarRutChileno } from '../../shared/validators/rut-chileno.validator';
 import { ReservaService } from './reserva.service';
+import { AutenticacionClienteService } from '../../shared/services/autenticacion-cliente.service';
+import { PerfilService } from '../mi-perfil/perfil.service';
 
 @Component({
   selector: 'app-reserva',
@@ -20,6 +22,7 @@ export class ReservaComponent implements OnInit {
   protected readonly isSubmitting = signal(false);
   protected readonly isRefreshingSlots = signal(false);
   protected readonly errorMessage = signal('');
+  protected readonly datosDeCuenta = signal(false);
   protected readonly availableDates = signal<string[]>([]);
   protected readonly availableTimes = signal<{ idHorario: number; hora: string }[]>([]);
   private readonly availableSlots = signal<{ idHorario: number; fecha: string; hora: string }[]>([]);
@@ -28,7 +31,9 @@ export class ReservaComponent implements OnInit {
 
   constructor(
     private readonly formBuilder: FormBuilder,
-    private readonly reservaService: ReservaService
+    private readonly reservaService: ReservaService,
+    private readonly autenticacion: AutenticacionClienteService,
+    private readonly perfilService: PerfilService
   ) {
     this.reservationForm = this.formBuilder.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
@@ -53,6 +58,30 @@ export class ReservaComponent implements OnInit {
       const refreshId = setInterval(() => this.actualizarHorariosDisponibles(), 60_000);
       this.destroyRef.onDestroy(() => clearInterval(refreshId));
     }
+    if (this.autenticacion.cliente()) {
+      this.cargarDatosDeCuenta();
+    }
+  }
+
+  private cargarDatosDeCuenta(): void {
+    this.perfilService.obtener().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (perfil) => {
+        this.reservationForm.patchValue({
+          name: `${perfil.nombre} ${perfil.apellido}`.trim(),
+          rut: perfil.rut,
+          phone: perfil.telefono ?? '',
+          email: perfil.correo ?? ''
+        });
+        this.reservationForm.controls.name.disable();
+        this.reservationForm.controls.rut.disable();
+        this.reservationForm.controls.phone.disable();
+        this.reservationForm.controls.email.disable();
+        this.datosDeCuenta.set(true);
+      },
+      error: () => {
+        // Sin perfil disponible, el cliente completa los datos manualmente.
+      }
+    });
   }
 
   protected actualizarHorariosDisponibles(): void {
@@ -107,6 +136,9 @@ export class ReservaComponent implements OnInit {
         this.confirmedName.set(formValue.name ?? '');
         this.isSubmitting.set(false);
         this.reservationForm.reset();
+        if (this.autenticacion.cliente()) {
+          this.cargarDatosDeCuenta();
+        }
         this.actualizarHorariosDisponibles();
       },
       error: (error: { error?: { mensaje?: string } }) => {

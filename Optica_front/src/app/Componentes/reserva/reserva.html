@@ -19,6 +19,9 @@
         <p class="eyebrow">Nueva reserva</p>
         <h2>Completa tus datos</h2>
         <p>Todos los campos son obligatorios.</p>
+        @if (datosDeCuenta()) {
+          <p class="form-footnote">Usamos los datos de tu cuenta. Para actualizarlos, ve a Mi perfil.</p>
+        }
       </div>
 
       @if (confirmedName()) {
