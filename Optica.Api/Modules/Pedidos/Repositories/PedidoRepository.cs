@@ -118,9 +118,16 @@ public class PedidoRepository : IPedidoRepository
         return await _context.Pedidos.FindAsync(id);
     }
 
+    public async Task<Pedido?> ObtenerPedidoPorCotizacionIdAsync(int idCotizacion)
+    {
+        return await _context.Pedidos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.IdCotizacion == idCotizacion);
+    }
+
     public Task<Pedido?> ObtenerPedidoPorIdParaActualizarAsync(int id) =>
         _context.Pedidos
-            .FromSqlInterpolated($"SELECT id_pedido, rut, id_receta, fecha, estado, total, anotaciones, fecha_entrega_estimada FROM pedidos WHERE id_pedido = {id} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT id_pedido, rut, id_receta, id_cotizacion, fecha, estado, total, anotaciones, fecha_entrega_estimada FROM pedidos WHERE id_pedido = {id} FOR UPDATE")
             .SingleOrDefaultAsync();
 
     public async Task ActualizarPedidoAsync(Pedido pedido)

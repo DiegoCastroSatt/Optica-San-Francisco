@@ -1,6 +1,7 @@
 using Optica.Api.Modules.Pedidos.DTOs;
 using Optica.Api.Modules.Pedidos.Interfaces;
 using Optica.Api.Modules.Pedidos.Models;
+using Optica.Api.Modules.Pedidos.Exceptions;
 using Optica.Api.Modules.Clientes.Services;
 using System.Net.Mail;
 using Optica.Api.Data;
@@ -127,6 +128,26 @@ public class PedidoService : IPedidoService
             throw new ArgumentException("No se encontró un cliente activo con ese RUT.");
         }
 
+        await using var transaccion = _dbContext is null ? null : await _dbContext.Database.BeginTransactionAsync();
+
+        if (dto.IdCotizacion.HasValue && _dbContext != null)
+        {
+            var idCot = dto.IdCotizacion.Value;
+            var filasAfectadas = await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE cotizaciones SET estado = 'Convertida' WHERE id_cotizacion = {idCot} AND estado = 'Pendiente'");
+
+            if (filasAfectadas == 0)
+            {
+                var pedidoExistente = await _pedidoRepository.ObtenerPedidoPorCotizacionIdAsync(idCot);
+                if (pedidoExistente != null)
+                {
+                    throw new CotizacionYaConvertidaException(pedidoExistente.IdPedido,
+                        $"Esta cotización ya fue convertida en el pedido N° {pedidoExistente.IdPedido}.");
+                }
+                throw new InvalidOperationException("La cotización no existe o no se encuentra en estado Pendiente.");
+            }
+        }
+
         var pedido = new Pedido
         {
             Rut = cliente.Rut,
@@ -134,10 +155,33 @@ public class PedidoService : IPedidoService
             Anotaciones = dto.Anotaciones,
             Estado = dto.Estado,
             Total = dto.Total,
-            FechaEntregaEstimada = dto.FechaEntregaEstimada
+            FechaEntregaEstimada = dto.FechaEntregaEstimada,
+            IdCotizacion = dto.IdCotizacion
         };
 
-        var nuevoPedido = await _pedidoRepository.CrearPedidoAsync(pedido);
+        Pedido nuevoPedido;
+        try
+        {
+            nuevoPedido = await _pedidoRepository.CrearPedidoAsync(pedido);
+            if (transaccion != null)
+            {
+                await transaccion.CommitAsync();
+            }
+        }
+        catch (DbUpdateException)
+        {
+            if (transaccion != null) await transaccion.RollbackAsync();
+            if (dto.IdCotizacion.HasValue)
+            {
+                var pedidoExistente = await _pedidoRepository.ObtenerPedidoPorCotizacionIdAsync(dto.IdCotizacion.Value);
+                if (pedidoExistente != null)
+                {
+                    throw new CotizacionYaConvertidaException(pedidoExistente.IdPedido,
+                        $"Esta cotización ya fue convertida en el pedido N° {pedidoExistente.IdPedido}.");
+                }
+            }
+            throw;
+        }
 
         return new PedidoResponseDto
         {
@@ -148,6 +192,7 @@ public class PedidoService : IPedidoService
             Total = nuevoPedido.Total,
             Anotaciones = nuevoPedido.Anotaciones,
             FechaEntregaEstimada = nuevoPedido.FechaEntregaEstimada,
+            IdCotizacion = nuevoPedido.IdCotizacion,
             Vencido = EsVencido(nuevoPedido.FechaEntregaEstimada, nuevoPedido.Estado)
         };
     }

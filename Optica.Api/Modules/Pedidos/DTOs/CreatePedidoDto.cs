@@ -10,4 +10,5 @@ public class CreatePedidoDto
     public decimal Total { get; set; }
     public string? Anotaciones { get; set; }
     public DateTime? FechaEntregaEstimada { get; set; }
+    public int? IdCotizacion { get; set; }
 }

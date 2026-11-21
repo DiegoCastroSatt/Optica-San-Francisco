@@ -9,6 +9,7 @@ using Optica.Api.Modules.Productos.Models;
 using Optica.Api.Modules.RegistroRecetas.Models;
 using Optica.Api.Modules.Ventas.Models;
 using Optica.Api.Modules.Pedidos.Models;
+using Optica.Api.Modules.Cotizaciones.Models;
 using Optica.Api.Modules.Resenas.Models;
 using Optica.Api.Modules.Encuestas.Models;
 using Optica.Api.Modules.AvisosReposicion.Models;
@@ -47,6 +48,8 @@ public class OpticaDbContext : DbContext
     public DbSet<CatalogoItem> Catalogos => Set<CatalogoItem>();
 
     public DbSet<Venta> Ventas => Set<Venta>();
+
+    public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
 
     public DbSet<Pedido> Pedidos => Set<Pedido>();
 
@@ -347,6 +350,23 @@ public class OpticaDbContext : DbContext
             entity.Property(c => c.Nombre).HasColumnName("nombre").HasMaxLength(60).IsRequired();
             entity.HasIndex(c => new { c.Tipo, c.Nombre }).IsUnique();
         });
+        modelBuilder.Entity<Cotizacion>(entity =>
+        {
+            entity.ToTable("cotizaciones");
+            entity.HasKey(c => c.IdCotizacion);
+            entity.Property(c => c.IdCotizacion).HasColumnName("id_cotizacion");
+            entity.Property(c => c.Rut).HasColumnName("rut");
+            entity.Property(c => c.Fecha).HasColumnName("fecha");
+            entity.Property(c => c.FechaEntregaEstimada).HasColumnName("fecha_entrega_estimada");
+            entity.Property(c => c.Total).HasColumnName("total").HasPrecision(10, 2);
+            entity.Property(c => c.Productos).HasColumnName("productos");
+            entity.Property(c => c.Servicios).HasColumnName("servicios");
+            entity.Property(c => c.Anotaciones).HasColumnName("anotaciones");
+            entity.Property(c => c.Estado).HasColumnName("estado");
+            entity.Property(c => c.FechaCreacion).HasColumnName("fecha_creacion");
+            entity.HasIndex(c => new { c.Rut, c.Estado }).HasDatabaseName("idx_cotizaciones_rut_estado");
+        });
+
         modelBuilder.Entity<Pedido>(entity =>
         {
             entity.ToTable("pedidos");
@@ -354,8 +374,10 @@ public class OpticaDbContext : DbContext
             entity.Property(p => p.IdPedido).HasColumnName("id_pedido");
             entity.Property(p => p.Rut).HasColumnName("rut");
             entity.Property(p => p.IdReceta).HasColumnName("id_receta");
+            entity.Property(p => p.IdCotizacion).HasColumnName("id_cotizacion");
             entity.Property(p => p.Fecha).HasColumnName("fecha");
             entity.HasIndex(p => p.Rut).HasDatabaseName("idx_pedidos_cliente");
+            entity.HasIndex(p => p.IdCotizacion).IsUnique().HasDatabaseName("uq_pedidos_cotizacion");
             entity.Property(p => p.Estado).HasColumnName("estado");
             entity.Property(p => p.Total).HasColumnName("total").HasPrecision(10, 2);
             entity.Property(p => p.Anotaciones).HasColumnName("anotaciones");
