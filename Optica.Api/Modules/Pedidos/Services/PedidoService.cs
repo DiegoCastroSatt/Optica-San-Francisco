@@ -128,23 +128,15 @@ public class PedidoService : IPedidoService
             throw new ArgumentException("No se encontró un cliente activo con ese RUT.");
         }
 
-        await using var transaccion = _dbContext is null ? null : await _dbContext.Database.BeginTransactionAsync();
+        var tokenCotizacion = string.IsNullOrWhiteSpace(dto.TokenCotizacion) ? null : dto.TokenCotizacion.Trim();
 
-        if (dto.IdCotizacion.HasValue && _dbContext != null)
+        if (tokenCotizacion is not null)
         {
-            var idCot = dto.IdCotizacion.Value;
-            var filasAfectadas = await _dbContext.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE cotizaciones SET estado = 'Convertida' WHERE id_cotizacion = {idCot} AND estado = 'Pendiente'");
-
-            if (filasAfectadas == 0)
+            var pedidoExistente = await _pedidoRepository.ObtenerPorTokenCotizacionAsync(tokenCotizacion);
+            if (pedidoExistente != null)
             {
-                var pedidoExistente = await _pedidoRepository.ObtenerPedidoPorCotizacionIdAsync(idCot);
-                if (pedidoExistente != null)
-                {
-                    throw new CotizacionYaConvertidaException(pedidoExistente.IdPedido,
-                        $"Esta cotización ya fue convertida en el pedido N° {pedidoExistente.IdPedido}.");
-                }
-                throw new InvalidOperationException("La cotización no existe o no se encuentra en estado Pendiente.");
+                throw new PedidoDuplicadoException(pedidoExistente.IdPedido,
+                    $"Este pedido ya fue procesado anteriormente (Pedido N° {pedidoExistente.IdPedido}).");
             }
         }
 
@@ -156,28 +148,23 @@ public class PedidoService : IPedidoService
             Estado = dto.Estado,
             Total = dto.Total,
             FechaEntregaEstimada = dto.FechaEntregaEstimada,
-            IdCotizacion = dto.IdCotizacion
+            TokenCotizacion = tokenCotizacion
         };
 
         Pedido nuevoPedido;
         try
         {
             nuevoPedido = await _pedidoRepository.CrearPedidoAsync(pedido);
-            if (transaccion != null)
-            {
-                await transaccion.CommitAsync();
-            }
         }
         catch (DbUpdateException)
         {
-            if (transaccion != null) await transaccion.RollbackAsync();
-            if (dto.IdCotizacion.HasValue)
+            if (tokenCotizacion is not null)
             {
-                var pedidoExistente = await _pedidoRepository.ObtenerPedidoPorCotizacionIdAsync(dto.IdCotizacion.Value);
+                var pedidoExistente = await _pedidoRepository.ObtenerPorTokenCotizacionAsync(tokenCotizacion);
                 if (pedidoExistente != null)
                 {
-                    throw new CotizacionYaConvertidaException(pedidoExistente.IdPedido,
-                        $"Esta cotización ya fue convertida en el pedido N° {pedidoExistente.IdPedido}.");
+                    throw new PedidoDuplicadoException(pedidoExistente.IdPedido,
+                        $"Este pedido ya fue procesado anteriormente (Pedido N° {pedidoExistente.IdPedido}).");
                 }
             }
             throw;
@@ -192,7 +179,7 @@ public class PedidoService : IPedidoService
             Total = nuevoPedido.Total,
             Anotaciones = nuevoPedido.Anotaciones,
             FechaEntregaEstimada = nuevoPedido.FechaEntregaEstimada,
-            IdCotizacion = nuevoPedido.IdCotizacion,
+            TokenCotizacion = nuevoPedido.TokenCotizacion,
             Vencido = EsVencido(nuevoPedido.FechaEntregaEstimada, nuevoPedido.Estado)
         };
     }

@@ -111,29 +111,11 @@ CREATE TABLE avisos_reposicion (
     INDEX idx_avisos_reposicion_rut_estado (rut, estado)
 );
 
-CREATE TABLE cotizaciones (
-id_cotizacion INT AUTO_INCREMENT PRIMARY KEY,
-rut VARCHAR(12) NOT NULL,
-fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-fecha_entrega_estimada DATE NULL,
-total DECIMAL(10,2) NOT NULL DEFAULT 0,
-productos TEXT NULL,
-servicios TEXT NULL,
-anotaciones TEXT NULL,
-estado ENUM('Pendiente', 'Convertida', 'Vencida', 'Cancelada') NOT NULL DEFAULT 'Pendiente',
-fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-CONSTRAINT fk_cotizaciones_cliente
-FOREIGN KEY (rut) REFERENCES clientes(rut)
-ON DELETE RESTRICT
-ON UPDATE CASCADE,
-INDEX idx_cotizaciones_rut_estado (rut, estado)
-);
-
 CREATE TABLE pedidos (
 id_pedido INT AUTO_INCREMENT PRIMARY KEY,
 rut VARCHAR(12) NOT NULL,
 id_receta INT,
-id_cotizacion INT NULL,
+token_cotizacion VARCHAR(36) NULL,
 fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 estado ENUM('Pendiente', 'En proceso', 'Listo', 'Entregado', 'Cancelado')
 NOT NULL DEFAULT 'Pendiente',
@@ -149,11 +131,8 @@ ON UPDATE CASCADE,
 CONSTRAINT fk_pedidos_receta
 FOREIGN KEY (id_receta) REFERENCES recetas(id_receta)
 ON DELETE SET NULL,
-CONSTRAINT fk_pedidos_cotizacion
-FOREIGN KEY (id_cotizacion) REFERENCES cotizaciones(id_cotizacion)
-ON DELETE RESTRICT,
-CONSTRAINT uq_pedidos_cotizacion
-UNIQUE (id_cotizacion)
+CONSTRAINT uq_pedidos_token_cotizacion
+UNIQUE (token_cotizacion)
 );
 
 CREATE TABLE ventas (

@@ -19,6 +19,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
   protected readonly errorMessage = signal('');
   protected readonly successMessage = signal('');
   protected readonly clientes = signal<ClienteOption[]>([]);
+  protected tokenCotizacion: string | null = null;
 
   private pdfRawUrl: string | null = null;
   private pdfNombreArchivo = 'cotizacion-pedido.pdf';
@@ -98,6 +99,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       total: number;
       anotaciones?: string;
       fechaEntregaEstimada?: string;
+      tokenCotizacion?: string;
     } = {
       rut: formValue.rut ?? '',
       fecha: formValue.fecha ?? '',
@@ -110,6 +112,10 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       payload.fechaEntregaEstimada = formValue.fechaEntregaEstimada;
     }
 
+    if (this.tokenCotizacion) {
+      payload.tokenCotizacion = this.tokenCotizacion;
+    }
+
     this.pedidoService.crearPedido(payload).subscribe({
       next: () => {
         this.isSubmitting.set(false);
@@ -117,7 +123,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
         // El modal solo se cierra cuando el guardado fue exitoso.
         this.cerrarModalCotizacion();
         this.pedidoForm.reset({ estado: 'Pendiente', total: null });
-        this.redireccionTimeout = setTimeout(() => this.router.navigate(['/admin/panel/pedido']), 2000);
+        this.redireccionTimeout = setTimeout(() => this.router.navigate(['/admin/panel/pedido'], { replaceUrl: true }), 2000);
       },
       error: (error: { error?: { mensaje?: string } }) => {
         this.errorMessage.set(
@@ -154,6 +160,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
 
     this.generandoCotizacion.set(true);
     this.errorMessage.set('');
+    this.tokenCotizacion = crypto.randomUUID();
 
     try {
       const clienteEncontrado = this.clientes().find(

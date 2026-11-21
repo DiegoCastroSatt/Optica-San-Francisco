@@ -104,13 +104,9 @@ public class PedidosController : ControllerBase
             var result = await _pedidoService.CrearPedidoAsync(dto);
             return CreatedAtAction(nameof(GetPedidos), new { id = result.IdPedido }, result);
         }
-        catch (CotizacionYaConvertidaException ex)
+        catch (PedidoDuplicadoException ex)
         {
             return StatusCode(StatusCodes.Status409Conflict, new { mensaje = ex.Message, idPedido = ex.IdPedidoExistente });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { mensaje = ex.Message });
         }
         catch (ArgumentException ex)
         {

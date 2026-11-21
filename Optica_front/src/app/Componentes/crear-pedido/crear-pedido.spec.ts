@@ -141,7 +141,7 @@ describe('CrearPedidoComponent', () => {
     expect(fixture.componentInstance['pedidoForm'].controls.estado.value).toBe('Pendiente');
 
     vi.advanceTimersByTime(2000);
-    expect(router.navigate).toHaveBeenCalledWith(['/admin/panel/pedido']);
+    expect(router.navigate).toHaveBeenCalledWith(['/admin/panel/pedido'], { replaceUrl: true });
   });
 
   it('incluye los servicios en las anotaciones del pedido guardado', () => {
@@ -272,8 +272,23 @@ describe('CrearPedidoComponent', () => {
     expect(servicio.crearPedido).toHaveBeenCalledWith(expect.objectContaining({
       rut: '12345678-9',
       total: 45000,
+      tokenCotizacion: expect.any(String),
       anotaciones: expect.stringContaining('Armazón Oakley Metal')
     }));
+  });
+
+  it('asigna un tokenCotizacion al generar cotización y renueva el token si se vuelve a generar', async () => {
+    stubUrl();
+    fixture.componentInstance['pedidoForm'].setValue(formularioValido());
+
+    await fixture.componentInstance['generarCotizacion']();
+    const primerToken = fixture.componentInstance['tokenCotizacion'];
+    expect(primerToken).toBeTruthy();
+
+    await fixture.componentInstance['generarCotizacion']();
+    const segundoToken = fixture.componentInstance['tokenCotizacion'];
+    expect(segundoToken).toBeTruthy();
+    expect(segundoToken).not.toBe(primerToken);
   });
 
   it('seguir editando cierra el modal, libera la URL y conserva los datos del formulario', async () => {
