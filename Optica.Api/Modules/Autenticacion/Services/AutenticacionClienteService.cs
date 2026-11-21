@@ -21,7 +21,7 @@ public sealed class AutenticacionClienteService(
     ILogger<AutenticacionClienteService> logger,
     IConfiguration configuracion)
 {
-    private const string NombreCentro = "Centro Óptico San Francisco";
+    internal const string NombreCentro = "Centro Óptico San Francisco";
     private static readonly TimeSpan VigenciaConfirmacion = TimeSpan.FromHours(24);
 
     public async Task<(ClienteSesionResponse? Sesion, bool CredencialesValidas)> IniciarSesionAsync(
@@ -281,31 +281,50 @@ public sealed class AutenticacionClienteService(
     private async Task<bool> EnviarCorreoConfirmacionAsync(
         CuentaCliente cuenta, string nombre, string token, CancellationToken cancellationToken)
     {
-        var baseFrontend = (configuracion["Correo:UrlBaseFrontend"] ?? "http://localhost:4200").TrimEnd('/');
-        var enlace = $"{baseFrontend}/cliente/confirmar-cuenta?token={Uri.EscapeDataString(token)}";
-        var enlaceHtml = HtmlEncoder.Default.Encode(enlace);
-        var nombreHtml = HtmlEncoder.Default.Encode(nombre);
-        var cuerpoHtml = $"""
-            <!doctype html><html lang="es"><body style="margin:0;background:#f3f7f6;font-family:Arial,sans-serif;color:#18333c">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center">
-            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:14px;padding:32px">
-            <tr><td><p style="margin:0 0 8px;color:#176b6c;font-weight:bold">{NombreCentro}</p>
-            <h1 style="font-size:24px">Confirma tu correo electrónico</h1>
-            <p>Hola {nombreHtml}, para activar tu cuenta confirma que tienes acceso a este correo.</p>
-            <p style="margin:24px 0"><a href="{enlaceHtml}" style="background:#176b6c;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">Confirmar mi cuenta</a></p>
-            <p>Este enlace vence en 24 horas y solo puede utilizarse una vez.</p>
-            <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
-            <p style="color:#63777c">{NombreCentro}</p></td></tr></table></td></tr></table></body></html>
-            """;
+        var cuerpoHtml = CrearCuerpoCorreoCuenta(
+            nombre,
+            CrearEnlaceFrontend(configuracion, "cliente/confirmar-cuenta", token),
+            titulo: "Confirma tu correo electrónico",
+            introduccion: "para activar tu cuenta confirma que tienes acceso a este correo.",
+            textoBoton: "Confirmar mi cuenta",
+            vigencia: "Este enlace vence en 24 horas y solo puede utilizarse una vez.",
+            aviso: "Si no creaste esta cuenta, puedes ignorar este mensaje.");
         var resultado = await emailService.EnviarConResultadoAsync(
             cuenta.Correo, $"Confirma tu cuenta - {NombreCentro}", cuerpoHtml, cancellationToken, importante: true);
         return resultado.Exitoso;
     }
 
-    private static string CrearTokenConfirmacion() =>
+    // Enlace al frontend con el token como parámetro; se comparte con la invitación de clientes.
+    internal static string CrearEnlaceFrontend(IConfiguration configuracion, string ruta, string token)
+    {
+        var baseFrontend = (configuracion["Correo:UrlBaseFrontend"] ?? "http://localhost:4200").TrimEnd('/');
+        return $"{baseFrontend}/{ruta}?token={Uri.EscapeDataString(token)}";
+    }
+
+    // Plantilla común de los correos de cuenta (confirmación e invitación). Codifica los valores variables.
+    internal static string CrearCuerpoCorreoCuenta(
+        string nombre, string enlace, string titulo, string introduccion, string textoBoton, string vigencia, string aviso)
+    {
+        var enlaceHtml = HtmlEncoder.Default.Encode(enlace);
+        var nombreHtml = HtmlEncoder.Default.Encode(nombre);
+        return $"""
+            <!doctype html><html lang="es"><body style="margin:0;background:#f3f7f6;font-family:Arial,sans-serif;color:#18333c">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:28px 12px"><tr><td align="center">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:14px;padding:32px">
+            <tr><td><p style="margin:0 0 8px;color:#176b6c;font-weight:bold">{NombreCentro}</p>
+            <h1 style="font-size:24px">{titulo}</h1>
+            <p>Hola {nombreHtml}, {introduccion}</p>
+            <p style="margin:24px 0"><a href="{enlaceHtml}" style="background:#176b6c;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">{textoBoton}</a></p>
+            <p>{vigencia}</p>
+            <p>{aviso}</p>
+            <p style="color:#63777c">{NombreCentro}</p></td></tr></table></td></tr></table></body></html>
+            """;
+    }
+
+    internal static string CrearTokenConfirmacion() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
 
-    private static string HashToken(string token) =>
+    internal static string HashToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token.Trim()))).ToLowerInvariant();
 
     public static ClienteSesionResponse CrearSesion(CuentaCliente cuenta) => new(
@@ -323,7 +342,7 @@ public sealed class AutenticacionClienteService(
         && contrasena.Any(char.IsDigit)
         && contrasena.Any(c => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c));
 
-    private static bool EsDuplicadoMySql(Exception exception)
+    internal static bool EsDuplicadoMySql(Exception exception)
     {
         for (Exception? actual = exception; actual is not null; actual = actual.InnerException)
             if (actual is MySqlException mysql && mysql.Number == 1062)

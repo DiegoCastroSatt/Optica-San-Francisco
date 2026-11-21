@@ -35,6 +35,8 @@ export class ClientesComponent implements OnInit {
   nuevoEstadoObjetivo: 'Activo' | 'Inactivo' = 'Inactivo';
   procesandoEstado: boolean = false;
 
+  invitandoId: number | null = null;
+
   modalHistorialAbierto: boolean = false;
   cargandoHistorial: boolean = false;
   errorHistorial: string | null = null;
@@ -106,9 +108,15 @@ export class ClientesComponent implements OnInit {
     this.cargando = true;
 
     this.clienteService.registrar(this.clienteForm.value).subscribe({
-      next: () => {
+      next: (respuesta) => {
         this.cargando = false;
-        this.mostrarAviso('success', 'Registro exitoso', 'El cliente ha sido ingresado correctamente en el sistema.');
+        // El alta siempre se completa; solo se advierte si había correo y la invitación no salió.
+        const invitacionFallida = respuesta?.invitacionEnviada === false && !!respuesta?.correo;
+        const detalleInvitacion = respuesta?.mensajeInvitacion ? ` ${respuesta.mensajeInvitacion}` : '';
+        this.mostrarAviso(
+          invitacionFallida ? 'warning' : 'success',
+          'Registro exitoso',
+          `El cliente ha sido ingresado correctamente en el sistema.${detalleInvitacion}`);
         this.clienteForm.reset();
         this.consultar();
       },
@@ -252,6 +260,23 @@ export class ClientesComponent implements OnInit {
         this.cerrarModalEstado();
         const detalle = err.error?.mensaje || 'No se pudo cambiar el estado del cliente.';
         this.mostrarAviso('error', 'Error al cambiar estado', detalle);
+      }
+    });
+  }
+
+  enviarInvitacion(cliente: Cliente): void {
+    if (!cliente.idCliente || this.invitandoId !== null) return;
+    this.invitandoId = cliente.idCliente;
+
+    this.clienteService.invitar(cliente.idCliente).subscribe({
+      next: (respuesta) => {
+        this.invitandoId = null;
+        this.mostrarAviso('success', 'Invitación enviada', respuesta.mensaje);
+      },
+      error: (err) => {
+        this.invitandoId = null;
+        const detalle = err.error?.mensaje || 'No se pudo enviar la invitación al cliente.';
+        this.mostrarAviso(err.status === 409 ? 'warning' : 'error', 'Invitación no enviada', detalle);
       }
     });
   }

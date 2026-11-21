@@ -1,0 +1,56 @@
+/* Estilos del formulario; la tarjeta se comparte con la confirmación de cuenta. */
+.activar-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activar-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-texto-login, #18333c);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.activar-campo input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-borde-login, #c9d6d6);
+  border-radius: 2px;
+  background: #fff;
+  color: #18333c;
+  font-size: 14px;
+}
+
+.activar-campo input:focus {
+  outline: 2px solid var(--color-principal, #176b6c);
+  outline-offset: 1px;
+}
+
+.activar-mostrar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-texto-login, #4a636a);
+  font-size: 13px;
+}
+
+.activar-ayuda,
+.activar-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.activar-ayuda { color: var(--color-texto-login, #4a636a); }
+
+.activar-error { color: #b3261e; }
+
+.btn-principal:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}

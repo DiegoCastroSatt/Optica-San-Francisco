@@ -1,0 +1,54 @@
+<main class="confirmar-contenedor">
+  <section class="confirmar-tarjeta" aria-live="polite">
+    <header class="confirmar-cabecera">
+      <span class="marca-eyebrow">CENTRO ÓPTICO SAN FRANCISCO</span>
+      @if (estado() === 'formulario') {
+        <h1>Activa tu cuenta</h1>
+      } @else if (estado() === 'exito') {
+        <h1>Cuenta activada</h1>
+      } @else {
+        <h1>Enlace no disponible</h1>
+      }
+    </header>
+
+    @if (estado() === 'formulario') {
+      <p class="confirmar-mensaje">Crea una contraseña para consultar tus pedidos, recetas y reservas.</p>
+
+      <form class="activar-formulario" (ngSubmit)="activar()" novalidate>
+        <label class="activar-campo" for="activar-contrasena">
+          <span>Nueva contraseña</span>
+          <input [type]="mostrarContrasena() ? 'text' : 'password'" id="activar-contrasena" name="nuevaContrasena"
+            [(ngModel)]="nuevaContrasena" autocomplete="new-password" maxlength="255" required [disabled]="enviando()">
+        </label>
+
+        <label class="activar-campo" for="activar-confirmar">
+          <span>Confirmar contraseña</span>
+          <input [type]="mostrarContrasena() ? 'text' : 'password'" id="activar-confirmar" name="confirmarContrasena"
+            [(ngModel)]="confirmarContrasena" autocomplete="new-password" maxlength="255" required [disabled]="enviando()">
+        </label>
+
+        <label class="activar-mostrar">
+          <input type="checkbox" [checked]="mostrarContrasena()" (change)="mostrarContrasena.set(!mostrarContrasena())">
+          Mostrar contraseñas
+        </label>
+
+        <p class="activar-ayuda">Usa al menos 8 caracteres e incluye letras, números y un símbolo.</p>
+
+        @if (error()) {
+          <p class="activar-error" role="alert">{{ error() }}</p>
+        }
+
+        <button type="submit" class="btn-principal" [disabled]="enviando()">
+          {{ enviando() ? 'Activando…' : 'Crear contraseña' }}
+        </button>
+      </form>
+    } @else {
+      <div class="confirmar-estado notificacion-sistema" [attr.data-tipo]="estado() === 'exito' ? 'success' : 'error'">
+        <p>{{ mensaje() }}</p>
+        <button type="button" class="btn-principal" (click)="irAlLogin()">
+          {{ estado() === 'exito' ? 'Ir a iniciar sesión' : 'Volver al inicio de sesión' }}
+        </button>
+      </div>
+    }
+  </section>
+</main>

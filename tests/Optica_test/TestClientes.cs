@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Optica.Api.Data;
+using Optica.Api.Modules.Autenticacion.Interfaces;
 using Optica.Api.Modules.Clientes.Controllers;
 using Optica.Api.Modules.Clientes.DTOs;
 using Optica.Api.Modules.Clientes.Models;
@@ -21,11 +23,93 @@ public class TestClientes : IDisposable
 
     public void Dispose() => db.Dispose();
 
+    private readonly InvitacionFalsa invitacion = new();
+
     private ClientesController Controlador()
     {
         var repo = new ClienteRepository(db);
         var service = new ClienteService(repo);
-        return new ClientesController(service);
+        return new ClientesController(service, invitacion, NullLogger<ClientesController>.Instance);
+    }
+
+    private sealed class InvitacionFalsa : IInvitacionClienteService
+    {
+        public List<int> Invitados { get; } = new();
+        public ResultadoInvitacionCliente Resultado { get; set; } = ResultadoInvitacionCliente.Enviada;
+
+        public bool Fallar { get; set; }
+
+        public Task<ResultadoInvitacionCliente> InvitarAsync(int idCliente, CancellationToken cancellationToken)
+        {
+            Invitados.Add(idCliente);
+            if (Fallar) throw new InvalidOperationException("Fallo simulado");
+            return Task.FromResult(Resultado);
+        }
+
+        public Task<ResultadoActivacionCliente> ActivarAsync(string token, string nuevaContrasena, string confirmarContrasena, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task Registrar_ConCorreoEnviaInvitacionYLaInformaEnLaRespuesta()
+    {
+        var resultado = Assert.IsType<CreatedAtActionResult>(await Controlador().Registrar(ValidoDto()));
+
+        var guardado = await db.Clientes.SingleAsync();
+        Assert.Equal(new[] { guardado.IdCliente }, invitacion.Invitados);
+        var cuerpo = resultado.Value!;
+        Assert.Equal(true, cuerpo.GetType().GetProperty("invitacionEnviada")!.GetValue(cuerpo));
+        Assert.Equal(guardado.Rut, cuerpo.GetType().GetProperty("Rut")!.GetValue(cuerpo));
+    }
+
+    [Fact]
+    public async Task Registrar_SinCorreoNoEnviaInvitacion()
+    {
+        var dto = ValidoDto();
+        dto.Correo = null;
+        dto.Telefono = "912345678";
+
+        var resultado = Assert.IsType<CreatedAtActionResult>(await Controlador().Registrar(dto));
+
+        Assert.Empty(invitacion.Invitados);
+        Assert.Equal(false, resultado.Value!.GetType().GetProperty("invitacionEnviada")!.GetValue(resultado.Value));
+    }
+
+    [Fact]
+    public async Task Registrar_FalloDeInvitacionNoDeshaceElAlta()
+    {
+        invitacion.Resultado = ResultadoInvitacionCliente.ErrorEnvio;
+
+        Assert.IsType<CreatedAtActionResult>(await Controlador().Registrar(ValidoDto()));
+        Assert.Single(await db.Clientes.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Invitar_ErrorInesperadoDevuelve500ConMensaje()
+    {
+        invitacion.Fallar = true;
+        var resultado = Assert.IsType<ObjectResult>(await Controlador().Invitar(7));
+        Assert.Equal(500, resultado.StatusCode);
+    }
+
+    [Fact]
+    public async Task Registrar_ExcepcionEnInvitacionNoDeshaceElAlta()
+    {
+        invitacion.Fallar = true;
+        Assert.IsType<CreatedAtActionResult>(await Controlador().Registrar(ValidoDto()));
+        Assert.Single(await db.Clientes.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(ResultadoInvitacionCliente.Enviada, typeof(OkObjectResult))]
+    [InlineData(ResultadoInvitacionCliente.ClienteNoEncontrado, typeof(NotFoundObjectResult))]
+    [InlineData(ResultadoInvitacionCliente.CuentaExistente, typeof(ConflictObjectResult))]
+    [InlineData(ResultadoInvitacionCliente.SinCorreo, typeof(BadRequestObjectResult))]
+    public async Task Invitar_TraduceElResultadoAHttp(ResultadoInvitacionCliente resultado, Type esperado)
+    {
+        invitacion.Resultado = resultado;
+        Assert.IsType(esperado, await Controlador().Invitar(7));
+        Assert.Equal(new[] { 7 }, invitacion.Invitados);
     }
 
     private PerfilClienteController ControladorPerfil(int? idCliente)
