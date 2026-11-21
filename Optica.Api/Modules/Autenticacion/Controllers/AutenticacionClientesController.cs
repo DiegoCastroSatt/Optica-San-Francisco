@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Optica.Api.Data;
 using Optica.Api.Modules.Accesos;
 using Optica.Api.Modules.Autenticacion.DTOs;
+using Optica.Api.Modules.Autenticacion.Interfaces;
 using Optica.Api.Modules.Autenticacion.Services;
 using Optica.Api.Modules.Clientes.Services;
 
@@ -104,6 +105,35 @@ public sealed class AutenticacionClientesController(
         if (!confirmada)
             return BadRequest(new { mensaje = "El enlace no es válido, venció o ya fue utilizado. Solicita un nuevo correo de confirmación." });
         return Ok(new { mensaje = "La confirmación se completó. Si estabas cambiando tu correo, ya está actualizado; si estabas activando tu cuenta, ya puedes iniciar sesión." });
+    }
+
+    // Activa la cuenta invitada por el personal definiendo la contraseña con el enlace del correo.
+    [AllowAnonymous]
+    [HttpPost("activar-cuenta")]
+    public async Task<IActionResult> ActivarCuenta(
+        [FromBody] ActivarCuentaClienteRequest request,
+        [FromServices] IInvitacionClienteService invitacion,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var resultado = await invitacion.ActivarAsync(
+                request.Token, request.NuevaContrasena, request.ConfirmarContrasena, cancellationToken);
+            return resultado switch
+            {
+                ResultadoActivacionCliente.Activada => Ok(new { mensaje = "Tu cuenta quedó activa. Ya puedes iniciar sesión con tu RUT o correo." }),
+                ResultadoActivacionCliente.ContrasenaInvalida => BadRequest(new { mensaje = "La contraseña debe tener al menos 8 caracteres e incluir letras, números y un símbolo." }),
+                ResultadoActivacionCliente.ContrasenasNoCoinciden => BadRequest(new { mensaje = "Las contraseñas no coinciden." }),
+                _ => BadRequest(new { mensaje = "El enlace no es válido, venció o ya fue utilizado. Pide en la óptica que te envíen una nueva invitación." })
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            logger.LogError("Falló la activación de cuenta de cliente ({TipoError}).", ex.GetType().Name);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { mensaje = "No se pudo activar la cuenta. Inténtalo nuevamente más tarde." });
+        }
     }
 
     [Authorize(Policy = Politica)]
