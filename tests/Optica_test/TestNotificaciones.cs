@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Optica.Api.Modules.Notificaciones.Services;
+using Optica.Api.Modules.Pedidos.Models;
 using Optica.Api.Modules.Pedidos.Services;
 using Xunit;
 
@@ -50,7 +51,7 @@ public sealed class TestNotificaciones
     {
         var servicio = new PedidoCorreoService(new CorreoFalso());
 
-        var correo = servicio.PrepararPedidoListo("ana@example.test", "<script>alert(1)</script>", 42);
+        var correo = servicio.PrepararPedidoListo("ana@example.test", "<script>alert(1)</script>", new Pedido { IdPedido = 42, Estado = "Listo" });
 
         Assert.Equal("ana@example.test", correo.Destinatario);
         Assert.Contains("&lt;script&gt;", correo.CuerpoHtml);
@@ -58,6 +59,41 @@ public sealed class TestNotificaciones
         Assert.Contains("#42", correo.CuerpoHtml);
         Assert.True(correo.Importante);
         Assert.Equal(42, correo.PedidoId);
+    }
+
+    [Fact]
+    public void PrepararPedidoListo_IncluyeEstadoFechaYMontoDelPedido()
+    {
+        var servicio = new PedidoCorreoService(new CorreoFalso());
+        var pedido = new Pedido
+        {
+            IdPedido = 7,
+            Estado = "Listo",
+            Fecha = new DateTime(2026, 11, 3, 15, 30, 0),
+            FechaEntregaEstimada = new DateTime(2026, 11, 20),
+            Total = 129990m,
+            Anotaciones = "Nota interna del taller"
+        };
+
+        var correo = servicio.PrepararPedidoListo("ana@example.test", "Ana Pérez", pedido);
+
+        Assert.Contains("#7", correo.Asunto);
+        Assert.Contains("#7", correo.CuerpoHtml);
+        Assert.Contains("Listo para retirar", correo.CuerpoHtml);
+        Assert.Contains("03-11-2026", correo.CuerpoHtml);
+        Assert.Contains("20-11-2026", correo.CuerpoHtml);
+        Assert.Contains("$129.990", correo.CuerpoHtml);
+        Assert.DoesNotContain("Nota interna", correo.CuerpoHtml);
+    }
+
+    [Fact]
+    public void PrepararPedidoListo_OmiteEntregaEstimadaCuandoNoExiste()
+    {
+        var servicio = new PedidoCorreoService(new CorreoFalso());
+
+        var correo = servicio.PrepararPedidoListo("ana@example.test", "Ana", new Pedido { IdPedido = 8, Estado = "Listo" });
+
+        Assert.DoesNotContain("Entrega estimada", correo.CuerpoHtml);
     }
 
     private sealed class CorreoFalso : Optica.Api.Modules.Notificaciones.Interfaces.IEmailService
