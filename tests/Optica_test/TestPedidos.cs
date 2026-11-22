@@ -344,7 +344,7 @@ public class TestPedidos
         public int Envios { get; private set; }
         public bool Resultado { get; set; } = true;
         public Exception? Error { get; set; }
-        public Task<bool> EnviarPedidoListoAsync(string? destinatario, string nombreCliente, int idPedido, CancellationToken cancellationToken)
+        public Task<bool> EnviarPedidoListoAsync(string? destinatario, string nombreCliente, Pedido pedido, CancellationToken cancellationToken)
         {
             Envios++;
             if (Error is not null) throw Error;

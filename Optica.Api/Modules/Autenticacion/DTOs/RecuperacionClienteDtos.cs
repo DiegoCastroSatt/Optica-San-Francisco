@@ -11,6 +11,11 @@ public sealed record ConfirmarRecuperacionClienteRequest(
 
 public sealed record ConfirmarCuentaClienteRequest(string Token);
 
+public sealed record ActivarCuentaClienteRequest(
+    string Token,
+    string NuevaContrasena,
+    string ConfirmarContrasena);
+
 public sealed record ReenviarConfirmacionClienteRequest(string Correo);
 
 public sealed class SolicitarCambioCorreoClienteRequest

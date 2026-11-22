@@ -13,6 +13,12 @@ export interface Cliente {
   fechaRegistro?: string;
 }
 
+// Respuesta del alta: el cliente más el resultado de la invitación para crear su cuenta.
+export interface ClienteRegistrado extends Cliente {
+  invitacionEnviada?: boolean;
+  mensajeInvitacion?: string;
+}
+
 export interface HistorialGraduacion {
   ojo: string;
   esfera?: number;
@@ -57,8 +63,13 @@ export class ClienteService {
 
   constructor(private http: HttpClient) {}
 
-  registrar(cliente: Cliente): Observable<Cliente> {
-    return this.http.post<Cliente>(this.apiUrl, cliente);
+  registrar(cliente: Cliente): Observable<ClienteRegistrado> {
+    return this.http.post<ClienteRegistrado>(this.apiUrl, cliente);
+  }
+
+  // Envía o reenvía el correo para que el cliente cree su contraseña.
+  invitar(id: number): Observable<{ mensaje: string }> {
+    return this.http.post<{ mensaje: string }>(`${this.apiUrl}/${id}/invitacion`, {});
   }
 
   buscar(termino: string = ''): Observable<Cliente[]> {

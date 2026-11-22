@@ -41,6 +41,11 @@ export class AutenticacionClienteService {
     return this.http.post<RespuestaAutenticacion>(`${this.apiUrl}/registro/confirmar`, { token });
   }
 
+  // Activa la cuenta creada por el personal definiendo la contraseña con el token de la invitación.
+  activarCuenta(token: string, nuevaContrasena: string, confirmarContrasena: string): Observable<RespuestaAutenticacion> {
+    return this.http.post<RespuestaAutenticacion>(`${this.apiUrl}/activar-cuenta`, { token, nuevaContrasena, confirmarContrasena });
+  }
+
   reenviarConfirmacion(correo: string): Observable<RespuestaAutenticacion> {
     return this.http.post<RespuestaAutenticacion>(`${this.apiUrl}/registro/confirmacion/reenviar`, { correo });
   }

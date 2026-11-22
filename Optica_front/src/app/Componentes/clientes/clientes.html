@@ -181,6 +181,17 @@
                         Editar
                       </button>
 
+                      @if (c.estado === 'Activo' && c.correo) {
+                        <button
+                          type="button"
+                          (click)="enviarInvitacion(c)"
+                          [disabled]="invitandoId !== null"
+                          title="Enviar correo para que el cliente cree su contraseña"
+                          class="clientes-boton">
+                          {{ invitandoId === c.idCliente ? 'Enviando…' : 'Invitar' }}
+                        </button>
+                      }
+
                       @if (c.estado === 'Activo') {
                         <button
                           type="button"

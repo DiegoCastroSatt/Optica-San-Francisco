@@ -57,7 +57,8 @@ describe('ClientesComponent', () => {
       registrar: vi.fn().mockReturnValue(of(mockClientes[0])),
       actualizar: vi.fn().mockReturnValue(of(mockClientes[0])),
       cambiarEstado: vi.fn().mockReturnValue(of({ mensaje: 'Ok' })),
-      obtenerHistorial: vi.fn().mockReturnValue(of(mockHistorial))
+      obtenerHistorial: vi.fn().mockReturnValue(of(mockHistorial)),
+      invitar: vi.fn().mockReturnValue(of({ mensaje: 'Se envió al cliente un correo para crear su contraseña.' }))
     };
 
     await TestBed.configureTestingModule({
@@ -110,6 +111,46 @@ describe('ClientesComponent', () => {
 
     expect(clienteServiceMock.registrar).toHaveBeenCalled();
     expect(component.toast?.tipo).toBe('success');
+  });
+
+  it('debe informar en el aviso el resultado de la invitación al registrar', () => {
+    clienteServiceMock.registrar.mockReturnValue(of({
+      ...mockClientes[0],
+      invitacionEnviada: false,
+      mensajeInvitacion: 'No se pudo enviar el correo de invitación.'
+    }));
+    component.clienteForm.patchValue({
+      rut: '12.345.678-5', nombre: 'Ana', apellido: 'Pérez', telefono: '+56912345678', correo: 'ana@test.cl'
+    });
+
+    component.registrar();
+
+    expect(component.toast?.tipo).toBe('warning');
+    expect(component.toast?.mensaje).toContain('No se pudo enviar el correo de invitación.');
+  });
+
+  it('debe enviar la invitación desde la fila del cliente', () => {
+    fixture.detectChanges();
+    const boton = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
+      .find(b => b.textContent?.trim() === 'Invitar');
+
+    boton!.click();
+
+    expect(clienteServiceMock.invitar).toHaveBeenCalledWith(1);
+    expect(component.toast?.tipo).toBe('success');
+    expect(component.invitandoId).toBeNull();
+  });
+
+  it('debe avisar si el cliente ya tiene una cuenta (409)', () => {
+    clienteServiceMock.invitar.mockReturnValue(
+      throwError(() => ({ status: 409, error: { mensaje: 'El cliente ya tiene una cuenta.' } }))
+    );
+
+    component.enviarInvitacion(mockClientes[0]);
+
+    expect(component.toast?.tipo).toBe('warning');
+    expect(component.toast?.mensaje).toBe('El cliente ya tiene una cuenta.');
+    expect(component.invitandoId).toBeNull();
   });
 
   it('debe mostrar aviso de conflicto (409) si el cliente ya existe', () => {

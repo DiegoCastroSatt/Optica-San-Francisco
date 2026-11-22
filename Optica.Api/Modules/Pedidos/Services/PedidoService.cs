@@ -222,7 +222,7 @@ public class PedidoService : IPedidoService
                     var correo = _correoService.PrepararPedidoListo(
                         clienteCorreo?.Correo,
                         clienteCorreo is null ? string.Empty : $"{clienteCorreo.Nombre} {clienteCorreo.Apellido}".Trim(),
-                        pedido.IdPedido);
+                        pedido);
                     _dbContext.CorreosPedido.Add(correo);
                     estadoNotificacion = "Pendiente";
                 }
@@ -262,7 +262,7 @@ public class PedidoService : IPedidoService
             if (cliente?.Correo is null || !MailAddress.TryCreate(cliente.Correo, out _))
                 return "Fallida";
 
-            return await _correoService.EnviarPedidoListoAsync(cliente.Correo, $"{cliente.Nombre} {cliente.Apellido}".Trim(), pedido.IdPedido, CancellationToken.None)
+            return await _correoService.EnviarPedidoListoAsync(cliente.Correo, $"{cliente.Nombre} {cliente.Apellido}".Trim(), pedido, CancellationToken.None)
                 ? "Enviada"
                 : "Fallida";
         }
