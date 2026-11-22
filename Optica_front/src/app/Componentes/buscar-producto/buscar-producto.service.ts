@@ -1,3 +1,4 @@
+import { SeleccionImagenes } from '../../shared/components/imagenes-producto/imagenes-producto';
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -16,6 +17,7 @@ export interface Producto {
   stockMinimo: number;
   estado: string;
   rutaImagen?: string;
+  rutasImagenes?: string[];
   tieneVentas: boolean;
 }
 
@@ -39,7 +41,7 @@ export interface HistorialStockPaginado {
   movimientos: HistorialStockMovimiento[];
 }
 
-export type ProductoEditable = Omit<Producto, 'id' | 'rutaImagen' | 'tieneVentas'> & { imagen?: File };
+export type ProductoEditable = Omit<Producto, 'id' | 'rutaImagen' | 'rutasImagenes' | 'tieneVentas'> & { imagen?: File; galeria?: SeleccionImagenes };
 
 export interface CatalogoItem {
   tipo: string;
@@ -94,6 +96,13 @@ export class BuscarProductoService {
     formData.append('estado', producto.estado);
     if (producto.imagen) {
       formData.append('imagen', producto.imagen, producto.imagen.name);
+    }
+
+    if (producto.galeria) {
+      producto.galeria.archivos.forEach(archivo => formData.append('imagenes', archivo, archivo.name));
+      formData.append('indicePrincipal', String(producto.galeria.indicePrincipal));
+      // El campo JSON distingue quitar todas las imágenes de conservar las actuales.
+      formData.append('rutasConservadasJson', JSON.stringify(producto.galeria.rutas));
     }
 
     return this.http.put<Producto>(`${this.apiUrl}/${id}`, formData);

@@ -110,12 +110,12 @@ describe('BuscarProductoComponent', () => {
     component['abrirDetalle'](productos[0]);
     component['activarEdicion']();
     component['productoForm'].patchValue({ nombre: 'Lentes actualizados' });
-    component['selectedImage'].set(image);
+    component['galeria'] = { archivos: [image], rutas: [], indicePrincipal: 0 };
     component['guardarCambios']();
 
     expect(service.actualizar).toHaveBeenCalledWith(1, expect.objectContaining({
       nombre: 'Lentes actualizados',
-      imagen: image
+      galeria: { archivos: [image], rutas: [], indicePrincipal: 0 }
     }));
     expect(component['editando']()).toBe(false);
     expect(component['guardando']()).toBe(false);
