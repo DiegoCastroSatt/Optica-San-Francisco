@@ -20,6 +20,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
   protected readonly successMessage = signal('');
   protected readonly clientes = signal<ClienteOption[]>([]);
   protected tokenCotizacion: string | null = null;
+  private datosUltimaCotizacion: string | null = null;
 
   private pdfRawUrl: string | null = null;
   private pdfNombreArchivo = 'cotizacion-pedido.pdf';
@@ -39,7 +40,6 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       estado: ['Pendiente', Validators.required],
       productos: [''],
       servicios: [''],
-      // El total lo ingresa el empleado: el sistema no lo calcula ni lo estima.
       total: [null as number | null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]],
       anotaciones: [''],
       fechaEntregaEstimada: ['']
@@ -121,7 +121,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
         this.isSubmitting.set(false);
         this.successMessage.set('Pedido guardado exitosamente.');
         this.tokenCotizacion = null;
-        // El modal solo se cierra cuando el guardado fue exitoso.
+        this.datosUltimaCotizacion = null;
         this.cerrarModalCotizacion();
         this.pedidoForm.reset({ estado: 'Pendiente', total: null });
         this.redireccionTimeout = setTimeout(() => this.router.navigate(['/admin/panel/pedido'], { replaceUrl: true }), 2000);
@@ -161,7 +161,12 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
 
     this.generandoCotizacion.set(true);
     this.errorMessage.set('');
-    this.tokenCotizacion = crypto.randomUUID();
+
+    const datosActuales = JSON.stringify(formValue);
+    if (!this.tokenCotizacion || datosActuales !== this.datosUltimaCotizacion) {
+      this.tokenCotizacion = crypto.randomUUID();
+      this.datosUltimaCotizacion = datosActuales;
+    }
 
     try {
       const clienteEncontrado = this.clientes().find(
@@ -199,7 +204,6 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
 
   protected cerrarModalCotizacion(): void {
     this.mostrarModalCotizacion.set(false);
-    this.tokenCotizacion = null;
     if (this.pdfRawUrl) {
       URL.revokeObjectURL(this.pdfRawUrl);
       this.pdfRawUrl = null;

@@ -3,7 +3,7 @@
 
 USE optica_db;
 
--- Agregar token_cotizacion con restricción UNIQUE a pedidos si no existe
+-- 1. Agregar columna token_cotizacion si no existe
 SET @col_token_existe = (
     SELECT COUNT(*) 
     FROM INFORMATION_SCHEMA.COLUMNS 
@@ -14,10 +14,29 @@ SET @col_token_existe = (
 
 SET @sql_add_token = IF(
     @col_token_existe = 0,
-    'ALTER TABLE pedidos ADD COLUMN token_cotizacion VARCHAR(36) NULL, ADD CONSTRAINT uq_pedidos_token_cotizacion UNIQUE (token_cotizacion);',
+    'ALTER TABLE pedidos ADD COLUMN token_cotizacion VARCHAR(36) NULL;',
     'SELECT "Columna token_cotizacion ya existe en pedidos";'
 );
 
 PREPARE stmt_token FROM @sql_add_token;
 EXECUTE stmt_token;
 DEALLOCATE PREPARE stmt_token;
+
+-- 2. Asegurar que la restricción UNIQUE se agregue aunque la columna ya existiera previamente
+SET @uq_token_existe = (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.STATISTICS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'pedidos' 
+      AND INDEX_NAME = 'uq_pedidos_token_cotizacion'
+);
+
+SET @sql_add_uq = IF(
+    @uq_token_existe = 0,
+    'ALTER TABLE pedidos ADD CONSTRAINT uq_pedidos_token_cotizacion UNIQUE (token_cotizacion);',
+    'SELECT "Restriccion UNIQUE uq_pedidos_token_cotizacion ya existe en pedidos";'
+);
+
+PREPARE stmt_uq FROM @sql_add_uq;
+EXECUTE stmt_uq;
+DEALLOCATE PREPARE stmt_uq;

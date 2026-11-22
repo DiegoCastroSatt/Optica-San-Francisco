@@ -237,7 +237,6 @@ describe('CrearPedidoComponent', () => {
     await fixture.componentInstance['generarCotizacion']();
     fixture.detectChanges();
 
-    // No debe descargar automáticamente al generar
     expect(clic).not.toHaveBeenCalled();
     expect(crearUrl).toHaveBeenCalled();
     expect(fixture.componentInstance['mostrarModalCotizacion']()).toBe(true);
@@ -261,12 +260,10 @@ describe('CrearPedidoComponent', () => {
     await fixture.componentInstance['generarCotizacion']();
     fixture.detectChanges();
 
-    // Descarga explícita desde el botón del modal
     fixture.componentInstance['descargarCotizacion']();
     expect(clic).toHaveBeenCalledOnce();
     expect(nombreDescarga).toBe('cotizacion-pedido-123456789.pdf');
 
-    // Finalizar pedido desde el modal guarda el pedido y cierra el modal
     fixture.componentInstance['finalizarPedidoDesdeModal']();
     expect(fixture.componentInstance['mostrarModalCotizacion']()).toBe(false);
     expect(servicio.crearPedido).toHaveBeenCalledWith(expect.objectContaining({
@@ -277,7 +274,7 @@ describe('CrearPedidoComponent', () => {
     }));
   });
 
-  it('asigna un tokenCotizacion al generar cotización y renueva el token si se vuelve a generar', async () => {
+  it('asigna un tokenCotizacion al generar cotización, lo conserva si los datos no cambian y lo renueva si se modifican los datos', async () => {
     stubUrl();
     fixture.componentInstance['pedidoForm'].setValue(formularioValido());
 
@@ -285,10 +282,16 @@ describe('CrearPedidoComponent', () => {
     const primerToken = fixture.componentInstance['tokenCotizacion'];
     expect(primerToken).toBeTruthy();
 
+    fixture.componentInstance['cerrarModalCotizacion']();
     await fixture.componentInstance['generarCotizacion']();
     const segundoToken = fixture.componentInstance['tokenCotizacion'];
-    expect(segundoToken).toBeTruthy();
-    expect(segundoToken).not.toBe(primerToken);
+    expect(segundoToken).toBe(primerToken);
+
+    fixture.componentInstance['pedidoForm'].controls.total.setValue(85000);
+    await fixture.componentInstance['generarCotizacion']();
+    const tercerToken = fixture.componentInstance['tokenCotizacion'];
+    expect(tercerToken).toBeTruthy();
+    expect(tercerToken).not.toBe(primerToken);
   });
 
   it('seguir editando cierra el modal, libera la URL y conserva los datos del formulario', async () => {
