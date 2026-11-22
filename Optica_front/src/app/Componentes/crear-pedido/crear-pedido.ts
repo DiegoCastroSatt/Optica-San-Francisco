@@ -120,6 +120,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
       next: () => {
         this.isSubmitting.set(false);
         this.successMessage.set('Pedido guardado exitosamente.');
+        this.tokenCotizacion = null;
         // El modal solo se cierra cuando el guardado fue exitoso.
         this.cerrarModalCotizacion();
         this.pedidoForm.reset({ estado: 'Pendiente', total: null });
@@ -198,6 +199,7 @@ export class CrearPedidoComponent implements OnInit, OnDestroy {
 
   protected cerrarModalCotizacion(): void {
     this.mostrarModalCotizacion.set(false);
+    this.tokenCotizacion = null;
     if (this.pdfRawUrl) {
       URL.revokeObjectURL(this.pdfRawUrl);
       this.pdfRawUrl = null;

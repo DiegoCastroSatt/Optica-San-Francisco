@@ -135,8 +135,7 @@ public class PedidoService : IPedidoService
             var pedidoExistente = await _pedidoRepository.ObtenerPorTokenCotizacionAsync(tokenCotizacion);
             if (pedidoExistente != null)
             {
-                throw new PedidoDuplicadoException(pedidoExistente.IdPedido,
-                    $"Este pedido ya fue procesado anteriormente (Pedido N° {pedidoExistente.IdPedido}).");
+                throw new PedidoDuplicadoException(pedidoExistente.IdPedido, MensajePedidoDuplicado(pedidoExistente.IdPedido));
             }
         }
 
@@ -163,8 +162,7 @@ public class PedidoService : IPedidoService
                 var pedidoExistente = await _pedidoRepository.ObtenerPorTokenCotizacionAsync(tokenCotizacion);
                 if (pedidoExistente != null)
                 {
-                    throw new PedidoDuplicadoException(pedidoExistente.IdPedido,
-                        $"Este pedido ya fue procesado anteriormente (Pedido N° {pedidoExistente.IdPedido}).");
+                    throw new PedidoDuplicadoException(pedidoExistente.IdPedido, MensajePedidoDuplicado(pedidoExistente.IdPedido));
                 }
             }
             throw;
@@ -272,4 +270,7 @@ public class PedidoService : IPedidoService
             return "Fallida";
         }
     }
+
+    private static string MensajePedidoDuplicado(int idPedido) =>
+        $"Este pedido ya fue procesado anteriormente (Pedido N° {idPedido}).";
 }

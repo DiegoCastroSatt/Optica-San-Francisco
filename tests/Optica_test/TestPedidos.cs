@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Optica.Api.Modules.Clientes.Models;
 using Optica.Api.Modules.Pedidos.DTOs;
 using Optica.Api.Modules.Pedidos.Exceptions;
@@ -112,6 +113,44 @@ public class TestPedidos
             }));
 
         Assert.Equal(99, ex.IdPedidoExistente);
+    }
+
+    [Fact]
+    public async Task Crear_ConTokenEspaciosOEnBlanco_SeNormalizaANull()
+    {
+        var repo = new RepositorioPedidos();
+
+        var resultado = await CrearServicio(repo).CrearPedidoAsync(new CreatePedidoDto
+        {
+            Rut = "12345678-5",
+            Total = 15000,
+            TokenCotizacion = "   "
+        });
+
+        Assert.Null(resultado.TokenCotizacion);
+        Assert.Null(repo.Guardado!.TokenCotizacion);
+    }
+
+    [Fact]
+    public async Task Crear_CuandoOcurreDbUpdateExceptionPorCarrera_LanzaPedidoDuplicadoException()
+    {
+        var token = "token-carrera-123";
+        var pedidoGanador = new Pedido { IdPedido = 77, Rut = "123456785", TokenCotizacion = token };
+        var repo = new RepositorioPedidos
+        {
+            ErrorAlCrear = new DbUpdateException("Duplicate entry"),
+            FuncionObtenerPorToken = (t) => Task.FromResult<Pedido?>(pedidoGanador)
+        };
+
+        var ex = await Assert.ThrowsAsync<PedidoDuplicadoException>(() =>
+            CrearServicio(repo).CrearPedidoAsync(new CreatePedidoDto
+            {
+                Rut = "12345678-5",
+                Total = 20000,
+                TokenCotizacion = token
+            }));
+
+        Assert.Equal(77, ex.IdPedidoExistente);
     }
 
     [Fact]
@@ -321,6 +360,8 @@ public class TestPedidos
         public Cliente? Cliente { get; set; } = new() { Rut = "123456785", Nombre = "Ana", Apellido = "Pérez" };
         public Pedido? Pedido { get; set; }
         public Pedido? PedidoPorToken { get; set; }
+        public Exception? ErrorAlCrear { get; set; }
+        public Func<string, Task<Pedido?>>? FuncionObtenerPorToken { get; set; }
         public Pedido? Guardado { get; private set; }
         public string? RutConsultado { get; private set; }
         public int Actualizaciones { get; private set; }
@@ -329,9 +370,14 @@ public class TestPedidos
         public IEnumerable<Cliente> ClientesActivos { get; set; } = [];
         public Task<Cliente?> ObtenerClienteActivoPorRutAsync(string rut) { RutConsultado = rut; return Task.FromResult(Cliente); }
         public Task<Cliente?> ObtenerClientePorRutAsync(string rut) => Task.FromResult(Cliente);
-        public Task<Pedido> CrearPedidoAsync(Pedido pedido) { Guardado = pedido; pedido.IdPedido = 42; return Task.FromResult(pedido); }
+        public Task<Pedido> CrearPedidoAsync(Pedido pedido)
+        {
+            if (ErrorAlCrear is not null) throw ErrorAlCrear;
+            Guardado = pedido; pedido.IdPedido = 42; return Task.FromResult(pedido);
+        }
         public Task<Pedido?> ObtenerPedidoPorIdAsync(int id) => Task.FromResult(Pedido);
-        public Task<Pedido?> ObtenerPorTokenCotizacionAsync(string token) => Task.FromResult(PedidoPorToken);
+        public Task<Pedido?> ObtenerPorTokenCotizacionAsync(string token)
+            => FuncionObtenerPorToken != null ? FuncionObtenerPorToken(token) : Task.FromResult(PedidoPorToken);
         public Task ActualizarPedidoAsync(Pedido pedido) { Actualizaciones++; return Task.CompletedTask; }
         public Task<IEnumerable<Pedido>> ObtenerPedidosAsync() => Task.FromResult<IEnumerable<Pedido>>([]);
         public Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosDetalleAsync() => Task.FromResult(PedidosDetalle);
