@@ -116,6 +116,7 @@ CREATE TABLE pedidos (
 id_pedido INT AUTO_INCREMENT PRIMARY KEY,
 rut VARCHAR(12) NOT NULL,
 id_receta INT,
+token_cotizacion VARCHAR(36) NULL,
 fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 estado ENUM('Pendiente', 'En proceso', 'Listo', 'Entregado', 'Cancelado')
 NOT NULL DEFAULT 'Pendiente',
@@ -130,7 +131,9 @@ ON DELETE RESTRICT
 ON UPDATE CASCADE,
 CONSTRAINT fk_pedidos_receta
 FOREIGN KEY (id_receta) REFERENCES recetas(id_receta)
-ON DELETE SET NULL
+ON DELETE SET NULL,
+CONSTRAINT uq_pedidos_token_cotizacion
+UNIQUE (token_cotizacion)
 );
 
 CREATE TABLE ventas (

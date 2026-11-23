@@ -21,10 +21,9 @@ describe('AdminLayoutComponent', () => {
     TestBed.inject(AutenticacionAdminService).administrador.set({ idAdministrador: 1, nombre: 'Administrador', tipoUsuario: 'Administrador' });
     fixture = TestBed.createComponent(AdminLayoutComponent);
     component = fixture.componentInstance;
-    TestBed.inject(HttpTestingController).expectOne('http://localhost:8080/api/Productos?termino=').flush([
-      { id: 1, nombre: 'Armazón clásico', stock: 4, stockMinimo: 3 },
-      { id: 2, nombre: 'Lentes solares', stock: 8, stockMinimo: 3 },
-    ]);
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush([]);
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush([]);
     await fixture.whenStable();
   });
 
@@ -57,12 +56,13 @@ describe('AdminLayoutComponent', () => {
     ]);
   });
 
-  it('crea y permite borrar una notificación de stock cuando cruza el mínimo', async () => {
+  it('mantiene alertas de stock bajo hasta que la API informa una reposición', async () => {
     await vi.advanceTimersByTimeAsync(15_000);
-    TestBed.inject(HttpTestingController).expectOne('http://localhost:8080/api/Productos?termino=').flush([
-      { id: 1, nombre: 'Armazón clásico', stock: 3, stockMinimo: 3 },
-      { id: 2, nombre: 'Lentes solares', stock: 8, stockMinimo: 3 },
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush([
+      { idProducto: 1, nombre: 'Armazón clásico', stock: 3, stockMinimo: 3 },
     ]);
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush([]);
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -72,9 +72,12 @@ describe('AdminLayoutComponent', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.panel-notificaciones').textContent).toContain('Armazón clásico');
     expect(fixture.nativeElement.querySelector('.panel-notificaciones').textContent).toContain('Quedan 3; mínimo 3.');
-    expect(fixture.nativeElement.querySelector('.panel-notificaciones').textContent).not.toContain('Lentes solares');
+    expect(fixture.nativeElement.querySelector('.boton-eliminar-notificacion')).toBeNull();
 
-    (fixture.nativeElement.querySelector('.boton-eliminar-notificacion') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(15_000);
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush([]);
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush([]);
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.contador-notificaciones')).toBeNull();
     expect(fixture.nativeElement.querySelector('.panel-notificaciones').textContent).toContain('No hay notificaciones');
@@ -96,17 +99,59 @@ describe('AdminLayoutComponent', () => {
     expect(fixture.nativeElement.querySelector('.panel-notificaciones').textContent).toContain('Se recibió una solicitud de reserva.');
   });
 
+  it('muestra las solicitudes abiertas como notificaciones persistentes hasta que se cierran', async () => {
+    const http = TestBed.inject(HttpTestingController);
+    const solicitudes = [{
+      idAviso: 7,
+      rutCliente: '12345678-5',
+      nombreCliente: 'Cliente E2E',
+      correoCliente: 'cliente@example.invalid',
+      idProducto: 12,
+      nombreProducto: 'Armazón solicitado',
+      fecha: '2026-11-23T12:00:00Z',
+      estado: 'Abierta',
+    }];
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush([]);
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush(solicitudes);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const boton = fixture.nativeElement.querySelector('.boton-notificaciones') as HTMLButtonElement;
+    boton.click();
+    fixture.detectChanges();
+    const panel = fixture.nativeElement.querySelector('.panel-notificaciones') as HTMLElement;
+    expect(panel.textContent).toContain('Solicitud de reposición: Armazón solicitado');
+    expect(panel.textContent).toContain('Cliente E2E solicitó un aviso');
+    const solicitud = fixture.nativeElement.querySelector(
+      '.panel-notificaciones [data-tipo="advertencia"]'
+    ) as HTMLElement;
+    expect(solicitud).not.toBeNull();
+    expect(solicitud.classList.contains('notificacion-sistema')).toBe(true);
+    expect(fixture.nativeElement.querySelector('.boton-eliminar-notificacion')).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush([]);
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush([
+      { ...solicitudes[0], estado: 'Cerrada' },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.contador-notificaciones')).toBeNull();
+    expect(panel.textContent).toContain('No hay notificaciones');
+  });
+
   it('reanuda la detección después de un error al consultar el inventario', async () => {
     const http = TestBed.inject(HttpTestingController);
     await vi.advanceTimersByTimeAsync(15_000);
-    http.expectOne('http://localhost:8080/api/Productos?termino=').flush({}, { status: 500, statusText: 'Error' });
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush({}, { status: 500, statusText: 'Error' });
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush([]);
     await fixture.whenStable();
 
     await vi.advanceTimersByTimeAsync(15_000);
-    http.expectOne('http://localhost:8080/api/Productos?termino=').flush([
-      { id: 1, nombre: 'Armazón clásico', stock: 4, stockMinimo: 3 },
-      { id: 2, nombre: 'Lentes solares', stock: 8, stockMinimo: 3 },
-    ]);
+    http.expectOne('http://localhost:8080/api/Productos/stock-bajo').flush([]);
+    http.expectOne('http://localhost:8080/api/AvisosReposicion').flush([]);
     await fixture.whenStable();
 
     (fixture.nativeElement.querySelector('.boton-notificaciones') as HTMLButtonElement).click();
@@ -134,7 +179,9 @@ describe('AdminLayoutComponent', () => {
     expect(fixture.nativeElement.querySelector('a[href="/admin/panel/clientes"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('a[href="/admin/panel/ventas"]')).toBeTruthy();
     await vi.advanceTimersByTimeAsync(15_000);
-    TestBed.inject(HttpTestingController).expectNone('http://localhost:8080/api/Productos?termino=');
+    const http = TestBed.inject(HttpTestingController);
+    http.expectNone('http://localhost:8080/api/Productos/stock-bajo');
+    http.expectNone('http://localhost:8080/api/AvisosReposicion');
   });
 
 });

@@ -111,6 +111,22 @@ public class TestProductos
     }
 
     [Fact]
+    public async Task ConsultarProductosStockBajo_DevuelveProductosEnElMinimoOAgotados()
+    {
+        var repositorio = new ProductoRepositorioPrueba();
+        repositorio.Productos.AddRange(
+            CrearProductoInventario(1, "OPT-001", "En el mínimo", 3, 3),
+            CrearProductoInventario(2, "OPT-002", "Agotado", 0, 5),
+            CrearProductoInventario(3, "OPT-003", "Stock suficiente", 4, 3));
+        using var cancellationSource = new CancellationTokenSource();
+
+        var alertas = await CrearServicio(repositorio).ConsultarProductosStockBajo(cancellationSource.Token);
+
+        Assert.Equal([1, 2], alertas.Select(alerta => alerta.IdProducto));
+        Assert.Equal(cancellationSource.Token, repositorio.TokenReporteInventario);
+    }
+
+    [Fact]
     public async Task EliminarProducto_PermiteBorrarAunqueTengaVentas()
     {
         var repositorio = new ProductoRepositorioPrueba

@@ -1,6 +1,7 @@
 import { FormBuilder } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { provideRouter } from '@angular/router';
+import { of, Subject, throwError } from 'rxjs';
 import { BuscarProductoComponent } from './buscar-producto';
 import { BuscarProductoService, Producto } from './buscar-producto.service';
 import { ResenasProductoService } from './resenas-producto.service';
@@ -19,20 +20,29 @@ const productos: Producto[] = [
   }
 ];
 
+const productoAgotado: Producto = {
+  id: 3, codigo: 'OPT-003', nombre: 'Armazón agotado', marca: 'Vogue', modelo: 'V3',
+  color: 'Negro', categoria: 'Armazones', precio: 18000, stock: 0, stockMinimo: 1,
+  estado: 'Agotado', tieneVentas: false
+};
+
 describe('BuscarProductoComponent', () => {
   let component: BuscarProductoComponent;
   let fixture: ComponentFixture<BuscarProductoComponent>;
   let service: {
     buscarPagina: ReturnType<typeof vi.fn>;
     actualizar: ReturnType<typeof vi.fn>;
+    solicitarAvisoReposicion: ReturnType<typeof vi.fn>;
   };
   let resenasService: {
     obtenerPorProducto: ReturnType<typeof vi.fn>;
     obtenerMisProductos: ReturnType<typeof vi.fn>;
     publicar: ReturnType<typeof vi.fn>;
   };
+  let clienteActual: { idCliente: number; nombre: string; correo: string } | null;
 
   beforeEach(async () => {
+    clienteActual = null;
     service = {
       buscarPagina: vi.fn(({ estado, categoria, color, marca, ordenPrecio }) => {
         const filtrados = productos.filter(p => (!estado || p.estado === estado) &&
@@ -41,7 +51,14 @@ describe('BuscarProductoComponent', () => {
         return of({ productos: filtrados, haySiguiente: false, categorias: ['Armazones', 'Lentes de sol'],
           colores: ['Dorado', 'Negro'], marcas: ['Ray-Ban', 'Vogue'] });
       }),
-      actualizar: vi.fn((id: number, producto: Producto) => of({ ...productos[0], ...producto, id }))
+      actualizar: vi.fn((id: number, producto: Producto) => of({ ...productos[0], ...producto, id })),
+      solicitarAvisoReposicion: vi.fn(() => of({
+        idAviso: 5,
+        idProducto: productoAgotado.id,
+        nombreProducto: productoAgotado.nombre,
+        fecha: '2026-11-23T12:00:00Z',
+        estado: 'Abierta'
+      }))
     };
     resenasService = {
       obtenerPorProducto: vi.fn(() => of({ resumen: { promedio: 0, cantidad: 0 }, resenas: [] })),
@@ -53,10 +70,11 @@ describe('BuscarProductoComponent', () => {
       imports: [BuscarProductoComponent],
       providers: [
         FormBuilder,
+        provideRouter([]),
         { provide: BuscarProductoService, useValue: service },
         { provide: ResenasProductoService, useValue: resenasService },
         { provide: AutenticacionClienteService, useValue: {
-          cliente: () => null,
+          cliente: () => clienteActual,
           verificarSesion: () => throwError(() => new Error('sin sesión'))
         } }
       ]
@@ -148,5 +166,82 @@ describe('BuscarProductoComponent', () => {
 
     expect(resenasService.obtenerPorProducto).toHaveBeenCalledWith(1);
     expect(component['resumenResenas']()).toEqual({ promedio: 0, cantidad: 0 });
+  });
+
+  it('permite solicitar aviso para un producto agotado y evita solicitudes duplicadas mientras espera', () => {
+    clienteActual = { idCliente: 4, nombre: 'Cliente de prueba', correo: 'cliente@example.invalid' };
+    const respuesta = new Subject<{
+      idAviso: number;
+      idProducto: number;
+      nombreProducto: string;
+      fecha: string;
+      estado: string;
+    }>();
+    service.solicitarAvisoReposicion.mockReturnValueOnce(respuesta);
+
+    component['abrirDetalle'](productoAgotado);
+    fixture.detectChanges();
+    const boton = fixture.nativeElement.querySelector('.restock-notice button') as HTMLButtonElement;
+    expect(boton).toBeTruthy();
+
+    boton.click();
+    fixture.detectChanges();
+    expect(service.solicitarAvisoReposicion).toHaveBeenCalledTimes(1);
+    expect(service.solicitarAvisoReposicion).toHaveBeenCalledWith(productoAgotado.id);
+    expect(boton.disabled).toBe(true);
+    expect(boton.textContent).toContain('Registrando solicitud');
+
+    component['solicitarAvisoReposicion'](productoAgotado.id);
+    expect(service.solicitarAvisoReposicion).toHaveBeenCalledTimes(1);
+
+    respuesta.next({
+      idAviso: 5,
+      idProducto: productoAgotado.id,
+      nombreProducto: productoAgotado.nombre,
+      fecha: '2026-11-23T12:00:00Z',
+      estado: 'Abierta'
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.restock-notice button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.restock-notice [role="status"]')?.textContent)
+      .toContain('Solicitud registrada');
+  });
+
+  it('muestra el error de la API y permite reintentar la solicitud', () => {
+    clienteActual = { idCliente: 4, nombre: 'Cliente de prueba', correo: 'cliente@example.invalid' };
+    service.solicitarAvisoReposicion.mockReturnValueOnce(
+      throwError(() => ({ error: { mensaje: 'Ya tienes una solicitud abierta para este producto.' } }))
+    );
+
+    component['abrirDetalle'](productoAgotado);
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.restock-notice button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.restock-notice [role="alert"]')?.textContent)
+      .toContain('Ya tienes una solicitud abierta');
+    const botonReintentar = fixture.nativeElement.querySelector('.restock-notice button') as HTMLButtonElement;
+    expect(botonReintentar).toBeTruthy();
+    expect(component['enviandoAvisoReposicion']()).toBe(false);
+
+    botonReintentar.click();
+    fixture.detectChanges();
+
+    expect(service.solicitarAvisoReposicion).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.querySelector('.restock-notice [role="status"]')?.textContent)
+      .toContain('Solicitud registrada');
+  });
+
+  it('no ofrece ni envía una solicitud de reposición a una sesión no autenticada', () => {
+    component['abrirDetalle'](productoAgotado);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.restock-notice button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.restock-notice a')?.getAttribute('href'))
+      .toBe('/cliente/login');
+
+    component['solicitarAvisoReposicion'](productoAgotado.id);
+    expect(service.solicitarAvisoReposicion).not.toHaveBeenCalled();
   });
 });

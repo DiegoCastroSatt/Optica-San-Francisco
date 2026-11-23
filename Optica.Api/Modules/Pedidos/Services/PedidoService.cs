@@ -1,6 +1,7 @@
 using Optica.Api.Modules.Pedidos.DTOs;
 using Optica.Api.Modules.Pedidos.Interfaces;
 using Optica.Api.Modules.Pedidos.Models;
+using Optica.Api.Modules.Pedidos.Exceptions;
 using Optica.Api.Modules.Clientes.Services;
 using System.Net.Mail;
 using Optica.Api.Data;
@@ -127,6 +128,17 @@ public class PedidoService : IPedidoService
             throw new ArgumentException("No se encontró un cliente activo con ese RUT.");
         }
 
+        var tokenCotizacion = string.IsNullOrWhiteSpace(dto.TokenCotizacion) ? null : dto.TokenCotizacion.Trim();
+
+        if (tokenCotizacion is not null)
+        {
+            var pedidoExistente = await _pedidoRepository.ObtenerPorTokenCotizacionAsync(tokenCotizacion);
+            if (pedidoExistente != null)
+            {
+                throw new PedidoDuplicadoException(pedidoExistente.IdPedido, MensajePedidoDuplicado(pedidoExistente.IdPedido));
+            }
+        }
+
         var pedido = new Pedido
         {
             Rut = cliente.Rut,
@@ -134,10 +146,27 @@ public class PedidoService : IPedidoService
             Anotaciones = dto.Anotaciones,
             Estado = dto.Estado,
             Total = dto.Total,
-            FechaEntregaEstimada = dto.FechaEntregaEstimada
+            FechaEntregaEstimada = dto.FechaEntregaEstimada,
+            TokenCotizacion = tokenCotizacion
         };
 
-        var nuevoPedido = await _pedidoRepository.CrearPedidoAsync(pedido);
+        Pedido nuevoPedido;
+        try
+        {
+            nuevoPedido = await _pedidoRepository.CrearPedidoAsync(pedido);
+        }
+        catch (DbUpdateException)
+        {
+            if (tokenCotizacion is not null)
+            {
+                var pedidoExistente = await _pedidoRepository.ObtenerPorTokenCotizacionAsync(tokenCotizacion);
+                if (pedidoExistente != null)
+                {
+                    throw new PedidoDuplicadoException(pedidoExistente.IdPedido, MensajePedidoDuplicado(pedidoExistente.IdPedido));
+                }
+            }
+            throw;
+        }
 
         return new PedidoResponseDto
         {
@@ -148,6 +177,7 @@ public class PedidoService : IPedidoService
             Total = nuevoPedido.Total,
             Anotaciones = nuevoPedido.Anotaciones,
             FechaEntregaEstimada = nuevoPedido.FechaEntregaEstimada,
+            TokenCotizacion = nuevoPedido.TokenCotizacion,
             Vencido = EsVencido(nuevoPedido.FechaEntregaEstimada, nuevoPedido.Estado)
         };
     }
@@ -190,7 +220,7 @@ public class PedidoService : IPedidoService
                     var correo = _correoService.PrepararPedidoListo(
                         clienteCorreo?.Correo,
                         clienteCorreo is null ? string.Empty : $"{clienteCorreo.Nombre} {clienteCorreo.Apellido}".Trim(),
-                        pedido.IdPedido);
+                        pedido);
                     _dbContext.CorreosPedido.Add(correo);
                     estadoNotificacion = "Pendiente";
                 }
@@ -230,7 +260,7 @@ public class PedidoService : IPedidoService
             if (cliente?.Correo is null || !MailAddress.TryCreate(cliente.Correo, out _))
                 return "Fallida";
 
-            return await _correoService.EnviarPedidoListoAsync(cliente.Correo, $"{cliente.Nombre} {cliente.Apellido}".Trim(), pedido.IdPedido, CancellationToken.None)
+            return await _correoService.EnviarPedidoListoAsync(cliente.Correo, $"{cliente.Nombre} {cliente.Apellido}".Trim(), pedido, CancellationToken.None)
                 ? "Enviada"
                 : "Fallida";
         }
@@ -240,4 +270,7 @@ public class PedidoService : IPedidoService
             return "Fallida";
         }
     }
+
+    private static string MensajePedidoDuplicado(int idPedido) =>
+        $"Este pedido ya fue procesado anteriormente (Pedido N° {idPedido}).";
 }

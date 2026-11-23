@@ -41,6 +41,15 @@ export interface HistorialStockPaginado {
   movimientos: HistorialStockMovimiento[];
 }
 
+export interface ProductoStockBajo {
+  idProducto: number;
+  codigo: string;
+  nombre: string;
+  categoria: string;
+  stock: number;
+  stockMinimo: number;
+}
+
 export type ProductoEditable = Omit<Producto, 'id' | 'rutaImagen' | 'rutasImagenes' | 'tieneVentas'> & { imagen?: File; galeria?: SeleccionImagenes };
 
 export interface CatalogoItem {
@@ -64,6 +73,10 @@ export class BuscarProductoService {
 
   buscar(termino: string): Observable<Producto[]> {
     return this.http.get<Producto[]>(this.apiUrl, { params: { termino } });
+  }
+
+  consultarStockBajo(): Observable<ProductoStockBajo[]> {
+    return this.http.get<ProductoStockBajo[]>(`${this.apiUrl}/stock-bajo`);
   }
 
   buscarPagina(params: Record<string, string | number | boolean>): Observable<{

@@ -82,8 +82,7 @@ public sealed class AvisoReposicionRepository(OpticaDbContext db) : IAvisoReposi
     public async Task Cerrar(int idAviso, CancellationToken cancellationToken)
     {
         await db.AvisosReposicion
-            .Where(aviso => aviso.IdAviso == idAviso && aviso.Estado == "Abierta"
-                && aviso.Producto.Stock > 0)
+            .Where(aviso => aviso.IdAviso == idAviso && aviso.Estado == "Abierta")
             .ExecuteUpdateAsync(update => update.SetProperty(aviso => aviso.Estado, "Cerrada"), cancellationToken);
     }
 

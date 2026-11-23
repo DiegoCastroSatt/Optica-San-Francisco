@@ -9,6 +9,7 @@ public interface IProductoService
     Task<(string[] Categorias, string[] Colores, string[] Marcas)> OpcionesBusqueda(string termino) =>
         throw new NotSupportedException();
     Task<ReporteInventarioResponseDto> ConsultarReporteInventario(CancellationToken cancellationToken);
+    Task<IReadOnlyList<ProductoReporteInventarioDto>> ConsultarProductosStockBajo(CancellationToken cancellationToken);
     Task<ProductoResponseDto?> ObtenerProducto(int id);
     Task<ProductoResponseDto> ActualizarProducto(int id, ActualizarProductoDto dto, int idResponsable);
     Task<ProductoResponseDto> ActualizarStock(int id, ActualizarStockDto dto, int idResponsable);

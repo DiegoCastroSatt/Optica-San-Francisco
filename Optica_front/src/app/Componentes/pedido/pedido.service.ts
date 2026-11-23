@@ -9,6 +9,7 @@ export interface CrearPedido {
   total: number;
   anotaciones?: string;
   fechaEntregaEstimada?: string;
+  tokenCotizacion?: string;
 }
 
 export interface PedidoResponse {

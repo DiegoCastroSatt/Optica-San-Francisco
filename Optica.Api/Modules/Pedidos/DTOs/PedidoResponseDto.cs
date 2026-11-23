@@ -12,6 +12,7 @@ public class PedidoResponseDto
     public string? Anotaciones { get; set; }
     public string? EstadoNotificacion { get; set; }
     public DateTime? FechaEntregaEstimada { get; set; }
+    public string? TokenCotizacion { get; set; }
     public bool Vencido { get; set; }
 }
 
