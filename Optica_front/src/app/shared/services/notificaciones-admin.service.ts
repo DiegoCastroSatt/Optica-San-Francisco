@@ -9,6 +9,7 @@ export interface NotificacionAdmin {
   tipo: TipoNotificacionAdmin;
   persistente?: boolean;
   idProductoStockBajo?: number;
+  idAvisoReposicion?: number;
 }
 
 export interface NuevaNotificacionAdmin {
@@ -50,6 +51,38 @@ export class NotificacionesAdminService {
     }));
 
     this.elementos.set([...alertasStock, ...otrasNotificaciones]);
+  }
+
+  actualizarSolicitudesReposicion(
+    avisos: readonly {
+      idAviso: number;
+      nombreCliente: string;
+      nombreProducto: string;
+      estado: string;
+    }[]
+  ): void {
+    const notificacionesActuales = this.elementos();
+    const otrasNotificaciones = notificacionesActuales.filter(
+      notificacion => notificacion.idAvisoReposicion === undefined
+    );
+    const notificacionesReposicion = avisos
+      .filter(aviso => aviso.estado === 'Abierta')
+      .map(aviso => {
+        const notificacionExistente = notificacionesActuales.find(
+          notificacion => notificacion.idAvisoReposicion === aviso.idAviso
+        );
+
+        return {
+          id: notificacionExistente?.id ?? this.siguienteId++,
+          idAvisoReposicion: aviso.idAviso,
+          titulo: `Solicitud de reposición: ${aviso.nombreProducto}`,
+          mensaje: `${aviso.nombreCliente} solicitó un aviso cuando el producto vuelva a estar disponible.`,
+          tipo: 'informacion' as const,
+          persistente: true
+        };
+      });
+
+    this.elementos.set([...notificacionesReposicion, ...otrasNotificaciones]);
   }
 
   eliminar(id: number): void {

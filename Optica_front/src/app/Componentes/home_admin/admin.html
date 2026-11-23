@@ -116,6 +116,9 @@
             @if (errorInventario()) {
               <p class="notificacion-sistema" data-tipo="error" role="alert">No se pudo verificar el stock.</p>
             }
+            @if (errorSolicitudes()) {
+              <p class="notificacion-sistema" data-tipo="error" role="alert">No se pudieron consultar las solicitudes de reposición.</p>
+            }
             @if (notificaciones().length) {
               <ul>
                 @for (notificacion of notificaciones(); track notificacion.id) {
@@ -151,7 +154,7 @@
                   </li>
                 }
               </ul>
-            } @else if (!errorInventario()) {
+            } @else if (!errorInventario() && !errorSolicitudes()) {
               <p>No hay notificaciones.</p>
             }
           </section>
