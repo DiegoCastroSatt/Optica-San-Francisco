@@ -115,6 +115,9 @@ test('el cliente solicita reposición, el administrador recibe la notificación 
       await expect(notificacion).toBeVisible({ timeout: 45_000 });
       await expect(notificacion).toContainText('Cliente E2E solicitó un aviso');
       await expect(
+        notificacion.locator('[data-tipo="advertencia"].notificacion-sistema'),
+      ).toBeVisible();
+      await expect(
         paginaAdministrador.getByRole('button', { name: `Eliminar notificación: ${titulo}` }),
       ).toHaveCount(0);
 

@@ -77,7 +77,7 @@ export class NotificacionesAdminService {
           idAvisoReposicion: aviso.idAviso,
           titulo: `Solicitud de reposición: ${aviso.nombreProducto}`,
           mensaje: `${aviso.nombreCliente} solicitó un aviso cuando el producto vuelva a estar disponible.`,
-          tipo: 'informacion' as const,
+          tipo: 'advertencia' as const,
           persistente: true
         };
       });

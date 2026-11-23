@@ -88,6 +88,13 @@ test('la alerta de stock bajo aparece después de vender y desaparece al reponer
       timeout: 45_000,
     });
     await expect(page.locator('#panel-notificaciones')).toContainText('Quedan 1; mínimo 1.');
+    await expect(
+      page
+        .locator('#panel-notificaciones')
+        .getByRole('listitem')
+        .filter({ hasText: `Bajo stock: ${nombre}` })
+        .locator('[data-tipo="advertencia"]'),
+    ).toBeVisible();
   });
 
   await test.step('repone el producto y espera que la alerta se retire', async () => {

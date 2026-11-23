@@ -23,6 +23,7 @@ describe('NotificacionesAdminService', () => {
     expect(primeraNotificacion).toMatchObject({
       titulo: 'Solicitud de reposición: Armazón agotado',
       mensaje: 'Cliente de prueba solicitó un aviso cuando el producto vuelva a estar disponible.',
+      tipo: 'advertencia',
       persistente: true
     });
     expect(primeraNotificacion).toBeDefined();
@@ -33,6 +34,26 @@ describe('NotificacionesAdminService', () => {
 
     if (primeraNotificacion) service.eliminar(primeraNotificacion.id);
     expect(service.notificaciones()).toHaveLength(1);
+  });
+
+  it('usa el formato de advertencia tanto para stock bajo como para solicitudes de reposición', () => {
+    service.actualizarAlertasStockBajo([{
+      idProducto: 3,
+      nombre: 'Armazón bajo',
+      stock: 0,
+      stockMinimo: 2
+    }]);
+    service.actualizarSolicitudesReposicion([{
+      idAviso: 7,
+      nombreCliente: 'Cliente de prueba',
+      nombreProducto: 'Armazón agotado',
+      estado: 'Abierta'
+    }]);
+
+    expect(service.notificaciones().map(item => item.tipo)).toEqual([
+      'advertencia',
+      'advertencia'
+    ]);
   });
 
   it('retira la notificación cuando la solicitud se cierra sin perder las demás', () => {

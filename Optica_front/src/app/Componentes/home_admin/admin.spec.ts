@@ -124,6 +124,11 @@ describe('AdminLayoutComponent', () => {
     const panel = fixture.nativeElement.querySelector('.panel-notificaciones') as HTMLElement;
     expect(panel.textContent).toContain('Solicitud de reposición: Armazón solicitado');
     expect(panel.textContent).toContain('Cliente E2E solicitó un aviso');
+    const solicitud = fixture.nativeElement.querySelector(
+      '.panel-notificaciones [data-tipo="advertencia"]'
+    ) as HTMLElement;
+    expect(solicitud).not.toBeNull();
+    expect(solicitud.classList.contains('notificacion-sistema')).toBe(true);
     expect(fixture.nativeElement.querySelector('.boton-eliminar-notificacion')).toBeNull();
 
     await vi.advanceTimersByTimeAsync(15_000);
