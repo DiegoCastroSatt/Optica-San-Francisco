@@ -40,6 +40,22 @@ describe('BuscarProductoService', () => {
     request.flush([]);
   });
 
+  it('registra una solicitud de reposición enviando las credenciales del cliente', () => {
+    service.solicitarAvisoReposicion(12).subscribe();
+
+    const request = http.expectOne('http://localhost:8080/api/AvisosReposicion/producto/12');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({});
+    expect(request.request.withCredentials).toBe(true);
+    request.flush({
+      idAviso: 7,
+      idProducto: 12,
+      nombreProducto: 'Armazón agotado',
+      fecha: '2026-11-23T12:00:00Z',
+      estado: 'Abierta'
+    });
+  });
+
   it('actualiza un producto enviando sus datos como FormData', () => {
     const producto: ProductoEditable = {
       codigo: 'OPT-001', nombre: 'Armazon', marca: 'Vogue', modelo: 'V1', color: 'Negro',
