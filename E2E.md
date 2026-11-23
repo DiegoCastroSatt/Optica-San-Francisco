@@ -67,7 +67,17 @@ npm run e2e:ui
 npm run e2e:debug
 ```
 
-Las pruebas están en `Optica_front/e2e/` y usan Chromium. La prueba de portada verifica el estado HTTP, el título real `OpticaWeb` y el encabezado accesible de la página inicial. La prueba de autenticación usa la cuenta cliente sintética del seed, verifica el `POST` de login, la redirección al portal y una respuesta satisfactoria de sesión después de recargar. La prueba de reporte de stock inicia sesión como administrador, abre Consultar Stock, visualiza el PDF y descarga el archivo para verificar su firma. La prueba de reserva realiza la reserva pública, inspecciona el correo de Mailpit, confirma desde su enlace y comprueba el estado desde AgendaReservas.
+Las pruebas están en `Optica_front/e2e/` y usan Chromium.
+
+La prueba de portada verifica el estado HTTP, el título real `OpticaWeb` y el encabezado accesible de la página inicial.
+
+La prueba de autenticación usa la cuenta cliente sintética del seed, verifica el `POST` de login, la redirección al portal y una respuesta satisfactoria de sesión después de recargar.
+
+La prueba de alertas crea un producto sintético, registra su venta desde la interfaz, comprueba la alerta de stock bajo y verifica que desaparezca después de reponerlo.
+
+La prueba de reporte de stock inicia sesión como administrador, abre Consultar Stock, visualiza el PDF y descarga el archivo para verificar su firma.
+
+La prueba de reserva realiza la reserva pública, inspecciona el correo de Mailpit, confirma desde su enlace y comprueba el estado desde AgendaReservas.
 
 ## Correo y datos sintéticos
 
