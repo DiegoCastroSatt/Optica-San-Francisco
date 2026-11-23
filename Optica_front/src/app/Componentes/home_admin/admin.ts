@@ -3,7 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { catchError, EMPTY, exhaustMap, interval, startWith } from 'rxjs';
-import { BuscarProductoService, Producto } from '../buscar-producto/buscar-producto.service';
+import { BuscarProductoService } from '../buscar-producto/buscar-producto.service';
 import { NotificacionesAdminService } from '../../shared/services/notificaciones-admin.service';
 
 @Component({
@@ -22,8 +22,6 @@ export class AdminLayoutComponent {
   protected readonly errorInventario = signal(false);
   protected readonly notificaciones = this.servicioNotificaciones.notificaciones;
   protected readonly cantidadNotificaciones = this.servicioNotificaciones.cantidad;
-  private stocksAnteriores = new Map<number, number>();
-  private inventarioInicializado = false;
 
   constructor() {
     interval(15_000)
@@ -32,7 +30,7 @@ export class AdminLayoutComponent {
         exhaustMap(() =>
           !this.sesion.puede('inventario')
             ? EMPTY
-            : this.productosService.buscar('').pipe(
+            : this.productosService.consultarStockBajo().pipe(
                 catchError(() => {
                   this.errorInventario.set(true);
                   return EMPTY;
@@ -41,7 +39,10 @@ export class AdminLayoutComponent {
         ),
         takeUntilDestroyed(),
       )
-      .subscribe((productos) => this.procesarInventario(productos));
+      .subscribe((productos) => {
+        this.errorInventario.set(false);
+        this.servicioNotificaciones.actualizarAlertasStockBajo(productos);
+      });
   }
 
   protected cerrarMenu(event: Event): void {
@@ -54,32 +55,6 @@ export class AdminLayoutComponent {
 
   protected eliminarNotificacion(id: number): void {
     this.servicioNotificaciones.eliminar(id);
-  }
-
-  private procesarInventario(productos: Producto[]): void {
-    this.errorInventario.set(false);
-    if (!this.inventarioInicializado) {
-      this.stocksAnteriores = new Map(productos.map((producto) => [producto.id, producto.stock]));
-      this.inventarioInicializado = true;
-      return;
-    }
-
-    for (const producto of productos) {
-      const stockAnterior = this.stocksAnteriores.get(producto.id);
-      if (
-        stockAnterior !== undefined &&
-        stockAnterior > producto.stockMinimo &&
-        producto.stock <= producto.stockMinimo
-      ) {
-        this.servicioNotificaciones.agregar({
-          titulo: `Bajo stock: ${producto.nombre}`,
-          mensaje: `Quedan ${producto.stock}; mínimo ${producto.stockMinimo}.`,
-          tipo: 'advertencia',
-        });
-      }
-    }
-
-    this.stocksAnteriores = new Map(productos.map((producto) => [producto.id, producto.stock]));
   }
 
   protected salir(): void {

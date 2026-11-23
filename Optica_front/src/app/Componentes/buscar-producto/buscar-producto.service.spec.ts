@@ -32,6 +32,14 @@ describe('BuscarProductoService', () => {
     request.flush([]);
   });
 
+  it('consulta las alertas vigentes de stock bajo desde la API', () => {
+    service.consultarStockBajo().subscribe();
+
+    const request = http.expectOne('http://localhost:8080/api/Productos/stock-bajo');
+    expect(request.request.method).toBe('GET');
+    request.flush([]);
+  });
+
   it('actualiza un producto enviando sus datos como FormData', () => {
     const producto: ProductoEditable = {
       codigo: 'OPT-001', nombre: 'Armazon', marca: 'Vogue', modelo: 'V1', color: 'Negro',

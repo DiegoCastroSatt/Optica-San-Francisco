@@ -54,6 +54,12 @@ public class ProductosController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _productoService.ConsultarReporteInventario(cancellationToken));
 
+    [HttpGet("stock-bajo")]
+    [ProducesResponseType(typeof(IReadOnlyList<ProductoReporteInventarioDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<ProductoReporteInventarioDto>>> ConsultarProductosStockBajo(
+        CancellationToken cancellationToken) =>
+        Ok(await _productoService.ConsultarProductosStockBajo(cancellationToken));
+
     [HttpPut("{id:int}")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> ActualizarProducto(int id, [FromForm] ActualizarProductoDto dto)
