@@ -77,6 +77,8 @@ La prueba de alertas crea un producto sintético, registra su venta desde la int
 
 La prueba de reporte de stock inicia sesión como administrador, abre Consultar Stock, visualiza el PDF y descarga el archivo para verificar su firma.
 
+La prueba de aviso de reposición inicia sesión como cliente y solicita el aviso para un producto agotado; verifica que el administrador vea una notificación persistente incluso después de recargar el dashboard, repone el producto y comprueba el correo de Mailpit y el cierre de la solicitud.
+
 La prueba de reserva realiza la reserva pública, inspecciona el correo de Mailpit, confirma desde su enlace y comprueba el estado desde AgendaReservas.
 
 ## Correo y datos sintéticos

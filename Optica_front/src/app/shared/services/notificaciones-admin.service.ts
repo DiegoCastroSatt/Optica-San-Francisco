@@ -58,7 +58,7 @@ export class NotificacionesAdminService {
       idAviso: number;
       nombreCliente: string;
       nombreProducto: string;
-      estado: string;
+      estado: 'Abierta' | 'Cerrada';
     }[]
   ): void {
     const notificacionesActuales = this.elementos();
