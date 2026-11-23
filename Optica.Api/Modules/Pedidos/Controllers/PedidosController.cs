@@ -4,6 +4,7 @@ using Optica.Api.Modules.Accesos;
 using Microsoft.AspNetCore.Mvc;
 using Optica.Api.Modules.Autenticacion.Controllers;
 using Optica.Api.Modules.Pedidos.DTOs;
+using Optica.Api.Modules.Pedidos.Exceptions;
 using Optica.Api.Modules.Pedidos.Interfaces;
 
 namespace Optica.Api.Modules.Pedidos.Controllers;
@@ -102,6 +103,10 @@ public class PedidosController : ControllerBase
         {
             var result = await _pedidoService.CrearPedidoAsync(dto);
             return CreatedAtAction(nameof(GetPedidos), new { id = result.IdPedido }, result);
+        }
+        catch (PedidoDuplicadoException ex)
+        {
+            return StatusCode(StatusCodes.Status409Conflict, new { mensaje = ex.Message, idPedido = ex.IdPedidoExistente });
         }
         catch (ArgumentException ex)
         {

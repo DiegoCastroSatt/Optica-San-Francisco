@@ -21,6 +21,8 @@ public interface IPedidoRepository
         => throw new NotSupportedException("La consulta de pedidos por ID de cliente no está implementada en este repositorio.");
     Task<Pedido> CrearPedidoAsync(Pedido pedido);
     Task<Pedido?> ObtenerPedidoPorIdAsync(int id);
+    Task<Pedido?> ObtenerPorTokenCotizacionAsync(string token)
+        => throw new NotSupportedException("La consulta de pedidos por token de cotización no está implementada en este repositorio.");
     Task<Pedido?> ObtenerPedidoPorIdParaActualizarAsync(int id) => ObtenerPedidoPorIdAsync(id);
     Task<PedidoResponseDto?> ObtenerPedidoDetalleAsync(int id);
     Task ActualizarPedidoAsync(Pedido pedido);

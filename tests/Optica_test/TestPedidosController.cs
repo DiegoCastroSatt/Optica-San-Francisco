@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Optica.Api.Modules.Pedidos.Controllers;
 using Optica.Api.Modules.Pedidos.DTOs;
+using Optica.Api.Modules.Pedidos.Exceptions;
 using Optica.Api.Modules.Pedidos.Interfaces;
 using Xunit;
 
@@ -44,6 +46,25 @@ public class TestPedidosController
 
         var ok = Assert.IsType<OkObjectResult>(resultado);
         Assert.Empty(Assert.IsAssignableFrom<IEnumerable<PedidoResponseDto>>(ok.Value));
+    }
+
+    [Fact]
+    public async Task CreatePedido_Devuelve409Conflict_CuandoPedidoEsDuplicado()
+    {
+        var servicio = new ServicioPedidosFalso
+        {
+            ErrorAlCrear = new PedidoDuplicadoException(105, "Este pedido ya fue procesado.")
+        };
+
+        var resultado = await new PedidosController(servicio).CreatePedido(new CreatePedidoDto
+        {
+            Rut = "12345678-5",
+            Total = 25000,
+            TokenCotizacion = "uuid-duplicado"
+        });
+
+        var conflict = Assert.IsType<ObjectResult>(resultado);
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
     }
 
     [Fact]
@@ -104,6 +125,7 @@ public class TestPedidosController
         public PedidoResponseDto? Pedido { get; set; }
         public PedidoResponseDto? ResultadoActualizacion { get; set; }
         public Exception? ErrorAlActualizar { get; set; }
+        public Exception? ErrorAlCrear { get; set; }
 
         public Task<IEnumerable<PedidoResponseDto>> ObtenerPedidosAsync()
             => Task.FromResult<IEnumerable<PedidoResponseDto>>([]);
@@ -112,7 +134,11 @@ public class TestPedidosController
             => Task.FromResult<IEnumerable<ClienteActivoDto>>([]);
 
         public Task<PedidoResponseDto> CrearPedidoAsync(CreatePedidoDto dto)
-            => Task.FromResult(new PedidoResponseDto { Estado = dto.Estado });
+        {
+            if (ErrorAlCrear is not null)
+                return Task.FromException<PedidoResponseDto>(ErrorAlCrear);
+            return Task.FromResult(new PedidoResponseDto { Estado = dto.Estado });
+        }
 
         public Task<PedidoResponseDto?> ObtenerPedidoPorIdAsync(int id)
             => Task.FromResult(Pedido);

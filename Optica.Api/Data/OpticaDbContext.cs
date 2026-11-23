@@ -354,8 +354,10 @@ public class OpticaDbContext : DbContext
             entity.Property(p => p.IdPedido).HasColumnName("id_pedido");
             entity.Property(p => p.Rut).HasColumnName("rut");
             entity.Property(p => p.IdReceta).HasColumnName("id_receta");
+            entity.Property(p => p.TokenCotizacion).HasColumnName("token_cotizacion").HasMaxLength(36);
             entity.Property(p => p.Fecha).HasColumnName("fecha");
             entity.HasIndex(p => p.Rut).HasDatabaseName("idx_pedidos_cliente");
+            entity.HasIndex(p => p.TokenCotizacion).IsUnique().HasDatabaseName("uq_pedidos_token_cotizacion");
             entity.Property(p => p.Estado).HasColumnName("estado");
             entity.Property(p => p.Total).HasColumnName("total").HasPrecision(10, 2);
             entity.Property(p => p.Anotaciones).HasColumnName("anotaciones");
