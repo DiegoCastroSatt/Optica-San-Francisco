@@ -116,6 +116,9 @@
             @if (errorInventario()) {
               <p class="notificacion-sistema" data-tipo="error" role="alert">No se pudo verificar el stock.</p>
             }
+            @if (errorSolicitudes()) {
+              <p class="notificacion-sistema" data-tipo="error" role="alert">No se pudieron consultar las solicitudes de reposición.</p>
+            }
             @if (notificaciones().length) {
               <ul>
                 @for (notificacion of notificaciones(); track notificacion.id) {
@@ -128,28 +131,30 @@
                       <strong>{{ notificacion.titulo }}</strong>
                       <span>{{ notificacion.mensaje }}</span>
                     </div>
-                    <button
-                      class="boton-eliminar-notificacion"
-                      type="button"
-                      (click)="eliminarNotificacion(notificacion.id)"
-                      [attr.aria-label]="'Eliminar notificación: ' + notificacion.titulo"
-                      title="Eliminar notificación"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path
-                          d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
+                    @if (!notificacion.persistente) {
+                      <button
+                        class="boton-eliminar-notificacion"
+                        type="button"
+                        (click)="eliminarNotificacion(notificacion.id)"
+                        [attr.aria-label]="'Eliminar notificación: ' + notificacion.titulo"
+                        title="Eliminar notificación"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path
+                            d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    }
                   </li>
                 }
               </ul>
-            } @else if (!errorInventario()) {
+            } @else if (!errorInventario() && !errorSolicitudes()) {
               <p>No hay notificaciones.</p>
             }
           </section>

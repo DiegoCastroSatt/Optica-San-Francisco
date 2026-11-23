@@ -19,6 +19,8 @@ using Optica.Api.Modules.AgendaReservas.Models;
 using Optica.Api.Modules.Autenticacion.DTOs;
 using Optica.Api.Modules.Autenticacion.Services;
 using Optica.Api.Modules.Clientes.Models;
+using Optica.Api.Modules.Productos.DTOs;
+using Optica.Api.Modules.Productos.Models;
 using Xunit;
 
 namespace Optica.Tests;
@@ -190,6 +192,48 @@ public sealed class TestAccesos
         using var respuesta = await cliente.GetAsync(ruta);
 
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProductosStockBajo_ProtegeConsultaYDevuelveElEstadoActual()
+    {
+        using var servidor = await CrearServidor();
+        using (var scope = servidor.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OpticaDbContext>();
+            db.Productos.AddRange(
+                new Producto
+                {
+                    IdProducto = 1,
+                    Codigo = "OPT-001",
+                    Nombre = "En el mínimo",
+                    Categoria = "Armazones",
+                    Stock = 2,
+                    StockMinimo = 2
+                },
+                new Producto
+                {
+                    IdProducto = 2,
+                    Codigo = "OPT-002",
+                    Nombre = "Stock suficiente",
+                    Categoria = "Armazones",
+                    Stock = 3,
+                    StockMinimo = 2
+                });
+            await db.SaveChangesAsync();
+        }
+
+        using var sinPermiso = CrearClienteHttp(servidor, "Trabajador", "ventas");
+        using var respuestaProhibida = await sinPermiso.GetAsync("/api/Productos/stock-bajo");
+        Assert.Equal(HttpStatusCode.Forbidden, respuestaProhibida.StatusCode);
+
+        using var conPermiso = CrearClienteHttp(servidor, "Trabajador", "inventario");
+        using var respuesta = await conPermiso.GetAsync("/api/Productos/stock-bajo");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var alertas = await respuesta.Content.ReadFromJsonAsync<List<ProductoReporteInventarioDto>>();
+        Assert.NotNull(alertas);
+        Assert.Equal(1, Assert.Single(alertas).IdProducto);
     }
 
     [Theory]

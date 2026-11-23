@@ -118,6 +118,16 @@ public class ProductoService : IProductoService
             stockBajo);
     }
 
+    public async Task<IReadOnlyList<ProductoReporteInventarioDto>> ConsultarProductosStockBajo(
+        CancellationToken cancellationToken)
+    {
+        var productos = await _productoRepository.ObtenerParaReporteInventario(cancellationToken);
+        return productos
+            .Where(producto => producto.Stock <= producto.StockMinimo)
+            .Select(MapearProductoReporte)
+            .ToList();
+    }
+
     public async Task<ProductoResponseDto?> ObtenerProducto(int id)
     {
         var producto = await _productoRepository.ObtenerPorId(id);
