@@ -1,3 +1,4 @@
+import { ImagenesProducto, SeleccionImagenes } from '../../shared/components/imagenes-producto/imagenes-producto';
 import { Component, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -5,7 +6,7 @@ import { RegistrarProductoService } from './registro-producto.service';
 
 @Component({
   selector: 'app-producto',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ImagenesProducto],
   templateUrl: './registro-producto.html',
   styleUrl: './registro-producto.css'
 })
@@ -20,7 +21,8 @@ export class ProductoComponent {
   protected readonly savedName = signal('');
   protected readonly isSubmitting = signal(false);
   protected readonly errorMessage = signal('');
-  protected readonly selectedImage = signal<File | null>(null);
+  protected galeria: SeleccionImagenes = { archivos: [], rutas: [], indicePrincipal: 0 };
+  protected readonly mostrarImagenes = signal(true);
 
   protected readonly productForm;
 
@@ -92,11 +94,7 @@ export class ProductoComponent {
     this.addOption('categoria', 'nuevaCategoria', this.categorias);
   }
 
-  protected handleImageChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const image = input.files?.[0] ?? null;
-    this.selectedImage.set(image);
-  }
+
 
   private addOption(
     optionControl: 'marca' | 'color' | 'categoria',
@@ -153,12 +151,14 @@ export class ProductoComponent {
       stock: Number(formValue.stock ?? 0),
       stockMinimo: Number(formValue.stockMinimo ?? 0),
       estado: formValue.estado ?? 'Disponible',
-      imagen: this.selectedImage() ?? undefined
+      galeria: this.galeria
     }).subscribe({
       next: () => {
         this.savedName.set(formValue.nombre ?? '');
         this.isSubmitting.set(false);
-        this.selectedImage.set(null);
+        this.galeria = { archivos: [], rutas: [], indicePrincipal: 0 };
+        this.mostrarImagenes.set(false);
+        setTimeout(() => this.mostrarImagenes.set(true));
         this.productForm.reset({ stock: 0, stockMinimo: 0, estado: 'Disponible', nuevaMarca: '', nuevoColor: '', nuevaCategoria: '' });
       },
       error: (error: { error?: { mensaje?: string } }) => {

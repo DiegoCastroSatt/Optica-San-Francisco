@@ -1,3 +1,4 @@
+import { ImagenesProducto, SeleccionImagenes } from '../../shared/components/imagenes-producto/imagenes-producto';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { Component, DestroyRef, Input, OnInit, inject, signal } from '@angular/core';
@@ -11,7 +12,7 @@ import { obtenerOrigenApi } from '../../shared/services/api-origin';
 
 @Component({
   selector: 'app-busqueda-producto',
-  imports: [ReactiveFormsModule, CurrencyPipe, RouterLink],
+  imports: [ReactiveFormsModule, CurrencyPipe, RouterLink, ImagenesProducto],
   templateUrl: './buscar-producto.html',
   styleUrl: './buscar-producto.css'
 })
@@ -39,8 +40,9 @@ export class BuscarProductoComponent implements OnInit {
   protected readonly sesionClienteVerificada = signal(false);
   protected readonly editando = signal(false);
   protected readonly guardando = signal(false);
-  protected readonly selectedImage = signal<File | null>(null);
-  protected readonly imagePreview = signal('');
+  protected readonly fotoActiva = signal(0);
+  protected readonly rutasEdicion = signal<string[]>([]);
+  protected galeria: SeleccionImagenes | undefined;
   protected readonly resenas = signal<ResenaProducto[]>([]);
   protected readonly resumenResenas = signal<{ promedio: number; cantidad: number }>({ promedio: 0, cantidad: 0 });
   protected readonly productosResenables = signal(new Map<number, boolean>());
@@ -188,6 +190,7 @@ export class BuscarProductoComponent implements OnInit {
 
   protected abrirDetalle(producto: Producto): void {
     this.productoSeleccionado.set(producto);
+    this.fotoActiva.set(0);
     this.editando.set(false);
     this.productoForm.reset(producto);
     this.enviandoAvisoReposicion.set(false);
@@ -297,9 +300,32 @@ export class BuscarProductoComponent implements OnInit {
     this.editando.set(false);
   }
 
+  protected imagenes(producto: Producto): string[] {
+    return producto.rutasImagenes ?? (producto.rutaImagen ? [producto.rutaImagen] : []);
+  }
+
+  protected moverFoto(paso: number): void {
+    const producto = this.productoSeleccionado();
+    if (!producto) return;
+    const cantidad = this.imagenes(producto).length;
+    if (cantidad) this.fotoActiva.set((this.fotoActiva() + paso + cantidad) % cantidad);
+  }
+
+  private inicioDeslizamiento = 0;
+
+  protected comenzarDeslizamiento(event: TouchEvent): void {
+    this.inicioDeslizamiento = event.changedTouches[0].clientX;
+  }
+
+  protected terminarDeslizamiento(event: TouchEvent): void {
+    const distancia = event.changedTouches[0].clientX - this.inicioDeslizamiento;
+    if (Math.abs(distancia) > 40) this.moverFoto(distancia > 0 ? -1 : 1);
+  }
+
   protected activarEdicion(): void {
-    this.selectedImage.set(null);
-    this.imagePreview.set('');
+    const producto = this.productoSeleccionado();
+    this.rutasEdicion.set(producto ? this.imagenes(producto) : []);
+    this.galeria = undefined;
     this.editando.set(true);
   }
 
@@ -339,17 +365,10 @@ export class BuscarProductoComponent implements OnInit {
     return control === 'marca' ? this.nuevaMarcaValue : control === 'color' ? this.nuevoColorValue : this.nuevaCategoriaValue;
   }
 
-  protected handleImageChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const image = input.files?.[0] ?? null;
-    this.selectedImage.set(image);
-    this.imagePreview.set(image ? URL.createObjectURL(image) : '');
-  }
+
 
   protected cancelarEdicion(): void {
     this.editando.set(false);
-    this.selectedImage.set(null);
-    this.imagePreview.set('');
   }
 
   protected imageUrl(rutaImagen?: string): string {
@@ -375,11 +394,12 @@ export class BuscarProductoComponent implements OnInit {
       marca: this.productoForm.controls.marca.value === this.nuevaMarcaValue ? '' : this.productoForm.controls.marca.value,
       color: this.productoForm.controls.color.value === this.nuevoColorValue ? '' : this.productoForm.controls.color.value,
       categoria: this.productoForm.controls.categoria.value === this.nuevaCategoriaValue ? '' : this.productoForm.controls.categoria.value,
-      imagen: this.selectedImage() ?? undefined
+      galeria: this.galeria
     };
     this.productoService.actualizar(producto.id, productoEditado).subscribe({
       next: (actualizado) => {
         this.productoSeleccionado.set(actualizado);
+        this.fotoActiva.set(0);
         this.cambiarPagina(this.pagina());
         this.editando.set(false);
         this.guardando.set(false);

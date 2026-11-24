@@ -154,16 +154,10 @@
       </section>
 
       <section class="form-section">
-        <h2>Imagen del producto</h2>
-        <div class="field">
-          <label for="imagen">Imagen</label>
-          <input id="imagen" type="file" accept="image/jpeg,image/png,image/webp"
-            (change)="handleImageChange($event)" />
-          <small>Formatos permitidos: JPG, PNG o WebP. Tamaño máximo: 5 MB.</small>
-          @if (selectedImage()) {
-          <small>{{ selectedImage()?.name }}</small>
-          }
-        </div>
+        <h2>Imágenes del producto</h2>
+        @if (mostrarImagenes()) {
+          <app-imagenes-producto [bloqueado]="isSubmitting()" (cambio)="galeria = $event" />
+        }
       </section>
 
       <div class="form-actions">

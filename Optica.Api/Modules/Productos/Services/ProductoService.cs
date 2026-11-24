@@ -68,24 +68,34 @@ public class ProductoService : IProductoService
             throw new InvalidOperationException("Ya existe un producto con ese código.");
         }
 
-        var rutaImagen = await GuardarImagen(dto.Imagen);
-
-        var producto = await _productoRepository.CrearConHistorialStock(new Producto
+        var nuevas = await GuardarImagenes(dto.Imagen, dto.Imagenes);
+        try
         {
-            Codigo = codigo,
-            Nombre = nombre,
-            Marca = dto.Marca.Trim(),
-            Modelo = dto.Modelo.Trim(),
-            Color = dto.Color.Trim(),
-            Categoria = dto.Categoria.Trim(),
-            Precio = dto.Precio,
-            Stock = dto.Stock,
-            StockMinimo = dto.StockMinimo,
-            Estado = EstadosValidos.First(estadoValido => string.Equals(estadoValido, estado, StringComparison.OrdinalIgnoreCase)),
-            RutaImagen = rutaImagen
-        }, idResponsable);
+            var rutas = OrdenarImagenes(nuevas, dto.IndicePrincipal);
 
-        return Mapear(producto);
+            var producto = await _productoRepository.CrearConHistorialStock(new Producto
+            {
+                Codigo = codigo,
+                Nombre = nombre,
+                Marca = dto.Marca.Trim(),
+                Modelo = dto.Modelo.Trim(),
+                Color = dto.Color.Trim(),
+                Categoria = dto.Categoria.Trim(),
+                Precio = dto.Precio,
+                Stock = dto.Stock,
+                StockMinimo = dto.StockMinimo,
+                Estado = EstadosValidos.First(estadoValido => string.Equals(estadoValido, estado, StringComparison.OrdinalIgnoreCase)),
+                RutaImagen = rutas.FirstOrDefault(),
+                ImagenesJson = System.Text.Json.JsonSerializer.Serialize(rutas)
+            }, idResponsable);
+
+            return Mapear(producto);
+        }
+        catch
+        {
+            foreach (var ruta in nuevas) EliminarImagen(ruta);
+            throw;
+        }
     }
 
     public async Task<List<ProductoResponseDto>> BuscarProductos(string termino) =>
@@ -167,22 +177,37 @@ public class ProductoService : IProductoService
         producto.Stock = dto.Stock;
         producto.StockMinimo = dto.StockMinimo;
         producto.Estado = EstadosValidos.First(estado => string.Equals(estado, dto.Estado.Trim(), StringComparison.OrdinalIgnoreCase));
-        string? rutaImagenAnterior = null;
-        if (dto.Imagen is not null && dto.Imagen.Length > 0)
+        var anteriores = producto.RutasImagenes;
+        // La ruta heredada se reemplaza solo si el consumidor antiguo envía Imagen.
+        List<string>? seleccion = null;
+        if (dto.RutasConservadasJson is not null)
         {
-            rutaImagenAnterior = producto.RutaImagen;
-            producto.RutaImagen = await GuardarImagen(dto.Imagen);
+            try { seleccion = System.Text.Json.JsonSerializer.Deserialize<List<string>>(dto.RutasConservadasJson); }
+            catch (System.Text.Json.JsonException) { throw new ArgumentException("La selección de imágenes no es válida."); }
+            if (seleccion is null) throw new ArgumentException("La selección de imágenes no es válida.");
         }
+        var conservadas = seleccion ?? (dto.Imagen is { Length: > 0 } ? [] : anteriores.ToList());
+        if (conservadas.Distinct().Count() != conservadas.Count || conservadas.Any(ruta => !anteriores.Contains(ruta)))
+            throw new ArgumentException("Las imágenes conservadas deben pertenecer al producto.");
+        if (conservadas.Count + dto.Imagenes.Count + (dto.Imagen is { Length: > 0 } ? 1 : 0) > 5)
+            throw new ArgumentException("Puedes guardar hasta 5 imágenes por producto.");
 
-        var actualizado = await _productoRepository.ActualizarConHistorialStock(
-            producto,
-            idResponsable,
-            dto.MotivoCambio?.Trim() ?? string.Empty);
-        if (rutaImagenAnterior is not null)
+        var nuevas = await GuardarImagenes(dto.Imagen, dto.Imagenes);
+        Producto actualizado;
+        try
         {
-            EliminarImagen(rutaImagenAnterior);
+            var rutas = OrdenarImagenes(conservadas.Concat(nuevas).ToList(), dto.IndicePrincipal);
+            producto.RutaImagen = rutas.FirstOrDefault();
+            producto.ImagenesJson = System.Text.Json.JsonSerializer.Serialize(rutas);
+            actualizado = await _productoRepository.ActualizarConHistorialStock(
+                producto, idResponsable, dto.MotivoCambio?.Trim() ?? string.Empty);
         }
-
+        catch
+        {
+            foreach (var ruta in nuevas) EliminarImagen(ruta);
+            throw;
+        }
+        foreach (var ruta in anteriores.Except(actualizado.RutasImagenes)) EliminarImagen(ruta);
         return Mapear(actualizado);
     }
 
@@ -257,7 +282,7 @@ public class ProductoService : IProductoService
             throw new InvalidOperationException("No se puede eliminar el producto porque está asociado a ventas o detalles de venta.", ex);
         }
 
-        EliminarImagen(producto.RutaImagen);
+        foreach (var ruta in producto.RutasImagenes) EliminarImagen(ruta);
     }
 
     private static ProductoResponseDto Mapear(Producto producto) => new()
@@ -275,6 +300,7 @@ public class ProductoService : IProductoService
         StockMinimo = producto.StockMinimo,
         Estado = producto.Estado,
         RutaImagen = producto.RutaImagen,
+        RutasImagenes = producto.RutasImagenes,
         TieneVentas = producto.TieneVentas
     };
 
@@ -305,6 +331,39 @@ public class ProductoService : IProductoService
             throw new ArgumentException("El motivo es obligatorio y no puede superar los 255 caracteres.");
     }
 
+    private static List<string> OrdenarImagenes(List<string> rutas, int principal)
+    {
+        if (principal < 0 || (rutas.Count > 0 && principal >= rutas.Count) || (rutas.Count == 0 && principal != 0))
+            throw new ArgumentException("Selecciona una imagen principal válida.");
+        if (rutas.Count > 0)
+        {
+            var ruta = rutas[principal];
+            rutas.RemoveAt(principal);
+            rutas.Insert(0, ruta);
+        }
+        return rutas;
+    }
+
+    private async Task<List<string>> GuardarImagenes(IFormFile? heredada, List<IFormFile> imagenes)
+    {
+        var archivos = imagenes.ToList();
+        if (heredada is { Length: > 0 }) archivos.Insert(0, heredada);
+        if (archivos.Count > 5) throw new ArgumentException("Puedes guardar hasta 5 imágenes por producto.");
+        if (archivos.Any(archivo => archivo.Length == 0))
+            throw new ArgumentException("La imagen está vacía.");
+        var rutas = new List<string>();
+        try
+        {
+            foreach (var archivo in archivos) rutas.Add((await GuardarImagen(archivo))!);
+            return rutas;
+        }
+        catch
+        {
+            foreach (var ruta in rutas) EliminarImagen(ruta);
+            throw;
+        }
+    }
+
     private async Task<string?> GuardarImagen(IFormFile? imagen)
     {
         if (imagen is null || imagen.Length == 0)
@@ -329,8 +388,16 @@ public class ProductoService : IProductoService
         var nombreArchivo = $"{Guid.NewGuid():N}{extension}";
         var rutaFisica = Path.Combine(directorio, nombreArchivo);
 
-        await using var stream = File.Create(rutaFisica);
-        await imagen.CopyToAsync(stream);
+        try
+        {
+            await using var stream = File.Create(rutaFisica);
+            await imagen.CopyToAsync(stream);
+        }
+        catch
+        {
+            EliminarImagen($"/uploads/productos/{nombreArchivo}");
+            throw;
+        }
         return $"/uploads/productos/{nombreArchivo}";
     }
 
@@ -346,7 +413,9 @@ public class ProductoService : IProductoService
         var rutaFisica = Path.Combine(directorio, nombreArchivo);
         if (File.Exists(rutaFisica))
         {
-            File.Delete(rutaFisica);
+            try { File.Delete(rutaFisica); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
     }
 }

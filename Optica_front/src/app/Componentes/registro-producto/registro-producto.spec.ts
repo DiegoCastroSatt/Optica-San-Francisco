@@ -92,7 +92,7 @@ describe('Registro de productos', () => {
       stock: 5,
       stockMinimo: 1,
       estado: 'Disponible',
-      imagen: undefined
+      galeria: { archivos: [], rutas: [], indicePrincipal: 0 }
     });
     expect(component['savedName']()).toBe('Armazón clásico');
     expect(dom.textContent).toContain('Producto guardado.');

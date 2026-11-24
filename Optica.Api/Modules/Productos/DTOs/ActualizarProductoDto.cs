@@ -17,4 +17,7 @@ public class ActualizarProductoDto
 
     public string Estado { get; set; } = "Disponible";
     public IFormFile? Imagen { get; set; }
+    public List<IFormFile> Imagenes { get; set; } = [];
+    public int IndicePrincipal { get; set; }
+    public string? RutasConservadasJson { get; set; }
 }

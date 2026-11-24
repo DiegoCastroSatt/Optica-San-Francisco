@@ -13,5 +13,6 @@ public class ProductoResponseDto
     public int StockMinimo { get; set; }
     public string Estado { get; set; } = string.Empty;
     public string? RutaImagen { get; set; }
+    public string[] RutasImagenes { get; set; } = [];
     public bool TieneVentas { get; set; }
 }

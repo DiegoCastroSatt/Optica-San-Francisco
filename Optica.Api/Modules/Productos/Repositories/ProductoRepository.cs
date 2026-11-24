@@ -142,6 +142,11 @@ public class ProductoRepository : IProductoRepository
         var valoresAnteriores = productosBloqueados.SingleOrDefault()
             ?? throw new KeyNotFoundException("No se encuentra el producto.");
 
+        var originales = _context.Entry(producto).OriginalValues;
+        if (!Equals(originales[nameof(Producto.ImagenesJson)], valoresAnteriores.ImagenesJson)
+            || !Equals(originales[nameof(Producto.RutaImagen)], valoresAnteriores.RutaImagen))
+            throw new InvalidOperationException("Las fotos del producto cambiaron. Actualiza el catálogo antes de guardar.");
+
         var stockCambio = valoresAnteriores.Stock != producto.Stock;
         var stockMinimoCambio = valoresAnteriores.StockMinimo != producto.StockMinimo;
         if ((stockCambio || stockMinimoCambio) && string.IsNullOrWhiteSpace(motivoMovimiento))

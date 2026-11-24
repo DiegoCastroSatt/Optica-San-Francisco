@@ -90,6 +90,7 @@ stock INT NOT NULL DEFAULT 0,
 stock_minimo INT NOT NULL DEFAULT 0,
 estado ENUM('Disponible', 'Agotado') NOT NULL DEFAULT 'Disponible',
 ruta_imagen VARCHAR(255),
+imagenes_json JSON NULL,
 id_tipo_marco INT NULL,
 CONSTRAINT fk_producto_tipo_marco FOREIGN KEY (id_tipo_marco) REFERENCES tipos_marco(id_tipo_marco) ON DELETE SET NULL
 );

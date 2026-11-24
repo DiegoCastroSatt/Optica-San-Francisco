@@ -307,6 +307,8 @@ public class OpticaDbContext : DbContext
             entity.Property(p => p.StockMinimo).HasColumnName("stock_minimo").IsRequired();
             entity.Property(p => p.Estado).HasColumnName("estado").HasMaxLength(9).IsRequired();
             entity.Property(p => p.RutaImagen).HasColumnName("ruta_imagen").HasMaxLength(255);
+            entity.Property(p => p.ImagenesJson).HasColumnName("imagenes_json").HasColumnType("json");
+            entity.Ignore(p => p.RutasImagenes);
             entity.HasIndex(p => p.Codigo).IsUnique();
             entity.HasIndex(p => new { p.Nombre, p.IdProducto }).HasDatabaseName("idx_productos_nombre");
         });

@@ -397,6 +397,82 @@ public class TestProductos
         StockMinimo = stockMinimo
     };
 
+    [Fact]
+    public async Task Galeria_CreaVariasImagenesYSeleccionaLaPrincipal()
+    {
+        var directorio = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var repo = new ProductoRepositorioPrueba();
+            var servicio = new ProductoService(repo, new EntornoPrueba { WebRootPath = directorio });
+            var dto = ProductoValido();
+            dto.Imagenes = [Foto("uno.jpg"), Foto("dos.jpg")];
+            dto.IndicePrincipal = 1;
+            var resultado = await servicio.CrearProducto(dto, 42);
+
+            Assert.Equal(2, resultado.RutasImagenes.Length);
+            Assert.Equal(resultado.RutasImagenes[0], resultado.RutaImagen);
+            Assert.Equal(2, Directory.GetFiles(Path.Combine(directorio, "uploads", "productos")).Length);
+        }
+        finally { if (Directory.Exists(directorio)) Directory.Delete(directorio, true); }
+    }
+
+    [Fact]
+    public async Task Galeria_LimpiaArchivosSiUnaImagenEsInvalida()
+    {
+        var directorio = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
+        {
+            var repo = new ProductoRepositorioPrueba();
+            var servicio = new ProductoService(repo, new EntornoPrueba { WebRootPath = directorio });
+            var dto = ProductoValido();
+            dto.Imagenes = [Foto("uno.jpg"), Foto("invalida.exe")];
+
+            await Assert.ThrowsAsync<ArgumentException>(() => servicio.CrearProducto(dto, 42));
+            Assert.Null(repo.UltimoProducto);
+            Assert.Empty(Directory.GetFiles(Path.Combine(directorio, "uploads", "productos")));
+        }
+        finally { if (Directory.Exists(directorio)) Directory.Delete(directorio, true); }
+    }
+
+    [Fact]
+    public async Task Galeria_ConservaLaImagenAnteriorYPermiteQuitarTodas()
+    {
+        var repo = new ProductoRepositorioPrueba
+        {
+            ProductoActual = new Producto { IdProducto = 1, Codigo = "OPT-001", Nombre = "Armazón",
+                Categoria = "Armazones", RutaImagen = "/uploads/productos/anterior.jpg" }
+        };
+        var servicio = CrearServicio(repo);
+        var dto = new ActualizarProductoDto
+        {
+            Codigo = "OPT-001", Nombre = "Armazón", Categoria = "Armazones", Estado = "Disponible"
+        };
+        var resultado = await servicio.ActualizarProducto(1, dto, 42);
+        Assert.Equal(new[] { "/uploads/productos/anterior.jpg" }, resultado.RutasImagenes);
+
+        dto.RutasConservadasJson = "[]";
+        resultado = await servicio.ActualizarProducto(1, dto, 42);
+        Assert.Empty(resultado.RutasImagenes);
+        Assert.Null(resultado.RutaImagen);
+    }
+
+    [Fact]
+    public async Task Galeria_RechazaRutasDeOtroProducto()
+    {
+        var repo = new ProductoRepositorioPrueba
+        {
+            ProductoActual = new Producto { IdProducto = 1, Codigo = "OPT-001", Nombre = "Armazón", Categoria = "Armazones" }
+        };
+        await Assert.ThrowsAsync<ArgumentException>(() => CrearServicio(repo).ActualizarProducto(1,
+            new ActualizarProductoDto { Codigo = "OPT-001", Nombre = "Armazón", Categoria = "Armazones",
+                Estado = "Disponible", RutasConservadasJson = "[\"/uploads/productos/ajena.jpg\"]" }, 42));
+    }
+
+    private static Microsoft.AspNetCore.Http.IFormFile Foto(string nombre) =>
+        new Microsoft.AspNetCore.Http.FormFile(new MemoryStream([255, 216, 255, 217]), 0, 4, "imagenes", nombre)
+        { Headers = new Microsoft.AspNetCore.Http.HeaderDictionary(), ContentType = "image/jpeg" };
+
     private static ProductoService CrearServicio(ProductoRepositorioPrueba repositorio) =>
         new(repositorio, new EntornoPrueba());
 

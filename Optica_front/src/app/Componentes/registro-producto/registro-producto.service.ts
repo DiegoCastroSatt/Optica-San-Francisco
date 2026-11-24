@@ -1,3 +1,4 @@
+import { SeleccionImagenes } from '../../shared/components/imagenes-producto/imagenes-producto';
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -14,6 +15,7 @@ export interface CrearProducto {
   stockMinimo: number;
   estado: string;
   imagen?: File;
+  galeria?: SeleccionImagenes;
 }
 
 export interface ProductoResponse {
@@ -49,6 +51,11 @@ export class RegistrarProductoService {
     formData.append('estado', producto.estado);
     if (producto.imagen) {
       formData.append('imagen', producto.imagen, producto.imagen.name);
+    }
+
+    if (producto.galeria) {
+      producto.galeria.archivos.forEach(archivo => formData.append('imagenes', archivo, archivo.name));
+      formData.append('indicePrincipal', String(producto.galeria.indicePrincipal));
     }
 
     return this.http.post<ProductoResponse>(this.apiUrl, formData);

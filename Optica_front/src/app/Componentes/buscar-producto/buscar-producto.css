@@ -35,8 +35,6 @@ dt { color: var(--color-texto-catalogo); font-size: .75rem; } dd { margin: 4px 0
 .edit-form label { display: grid; gap: 6px; color: var(--color-texto-catalogo); font-size: .8rem; font-weight: 700; }
 .image-editor { display: grid; grid-column: 1 / -1; gap: 8px; border-top: 1px solid var(--color-borde-detalle); padding-top: 16px; }
 .field-title { color: var(--color-texto); font-size: .85rem; font-weight: 800; }
-.edit-image-preview, .edit-image-empty { display: grid; place-items: center; width: 100%; height: 150px; object-fit: contain; background: var(--color-fondo-imagen); color: var(--color-texto-catalogo); }
-.image-picker { justify-self: start; padding: 9px 13px; border: 1px solid var(--color-borde-catalogo); border-radius: 3px; color: var(--color-principal); cursor: pointer; font-weight: 700; }
 .actions { display: flex; justify-content: end; gap: 8px; grid-column: 1 / -1; margin-top: 8px; }
 .add-option { display: flex; gap: 6px; }
 .add-option button { flex: 0 0 auto; padding: 8px 10px; }
@@ -70,4 +68,19 @@ button:disabled { cursor: wait; opacity: .65; }
 .agotado { display: inline-block; color: var(--color-error-producto); background: var(--color-error-fondo-producto); padding: 4px 8px; border-radius: 4px; font-size: .8rem; font-weight: 700; }
 button:hover {
   border-color: var(--color-acento);
+}
+
+.galeria-producto { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 12px; }
+.galeria-miniaturas { display: flex; flex-direction: column; gap: 8px; }
+.galeria-miniaturas button { width: 54px; height: 54px; padding: 4px; border-radius: 6px; background: var(--color-superficie); }
+.galeria-miniaturas button.activa { border: 2px solid var(--color-principal); }
+.galeria-miniaturas img { width: 100%; height: 100%; object-fit: contain; }
+.galeria-principal { min-width: 0; touch-action: pan-y; }
+.galeria-principal .detail-image { width: 100%; height: 320px; object-fit: contain; }
+.galeria-navegacion { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.galeria-navegacion button { min-width: 40px; font-size: 1.4rem; }
+@media (max-width: 620px) {
+  .galeria-producto { display: flex; flex-direction: column-reverse; }
+  .galeria-miniaturas { flex-direction: row; flex-wrap: wrap; }
+  .galeria-principal .detail-image { height: 250px; }
 }

@@ -18,6 +18,13 @@ public class Producto
     public string Estado { get; set; } = "Disponible";
     public string? RutaImagen { get; set; }
 
+    public string? ImagenesJson { get; set; }
+
+    [NotMapped]
+    public string[] RutasImagenes => ImagenesJson is null
+        ? (RutaImagen is null ? [] : [RutaImagen])
+        : System.Text.Json.JsonSerializer.Deserialize<string[]>(ImagenesJson) ?? [];
+
     [NotMapped]
     public bool TieneVentas { get; set; }
 }

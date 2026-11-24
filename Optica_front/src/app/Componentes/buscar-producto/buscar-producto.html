@@ -126,8 +126,28 @@
           <div class="detail-visual">
             <p class="eyebrow">Detalle del producto</p>
             <h2 id="detalle-titulo">{{ producto.nombre }}</h2>
-            @if (producto.rutaImagen) {
-              <img class="detail-image" [src]="imageUrl(producto.rutaImagen)" [alt]="producto.nombre">
+            @let fotos = imagenes(producto);
+            @if (fotos.length) {
+              <div class="galeria-producto">
+                <div class="galeria-miniaturas" role="group" aria-label="Fotos del producto">
+                  @for (foto of fotos; track foto; let i = $index) {
+                    <button type="button" [class.activa]="fotoActiva() === i" [attr.aria-pressed]="fotoActiva() === i"
+                      [attr.aria-label]="'Ver foto ' + (i + 1)" (click)="fotoActiva.set(i)">
+                      <img [src]="imageUrl(foto)" alt="">
+                    </button>
+                  }
+                </div>
+                <div class="galeria-principal" (touchstart)="comenzarDeslizamiento($event)" (touchend)="terminarDeslizamiento($event)">
+                  <img class="detail-image" [src]="imageUrl(fotos[fotoActiva()])" [alt]="producto.nombre + ', foto ' + (fotoActiva() + 1)">
+                  @if (fotos.length > 1) {
+                    <div class="galeria-navegacion">
+                      <button type="button" aria-label="Foto anterior" (click)="moverFoto(-1)">‹</button>
+                      <span aria-live="polite">{{ fotoActiva() + 1 }} / {{ fotos.length }}</span>
+                      <button type="button" aria-label="Foto siguiente" (click)="moverFoto(1)">›</button>
+                    </div>
+                  }
+                </div>
+              </div>
             } @else {
               <div class="detail-image detail-placeholder" aria-hidden="true">SF</div>
             }
@@ -268,17 +288,8 @@
           <label>Precio <input type="number" formControlName="precio"></label>
           <label>Estado <select formControlName="estado"><option>Disponible</option><option>Agotado</option></select></label>
           <div class="image-editor">
-            <span class="field-title">Imagen del producto</span>
-            @if (imagePreview() || producto.rutaImagen) {
-              <img class="edit-image-preview" [src]="imagePreview() || imageUrl(producto.rutaImagen)" [alt]="producto.nombre">
-            } @else {
-              <span class="edit-image-empty">Sin imagen</span>
-            }
-            <label class="image-picker">
-              Cambiar imagen
-              <input type="file" accept="image/jpeg,image/png,image/webp" (change)="handleImageChange($event)">
-            </label>
-            <small>JPG, PNG o WebP, máximo 5 MB. {{ selectedImage()?.name || 'Se conserva la imagen actual si no eliges otra.' }}</small>
+            <span class="field-title">Imágenes del producto</span>
+            <app-imagenes-producto [rutas]="rutasEdicion()" [bloqueado]="guardando()" (cambio)="galeria = $event" />
           </div>
           <div class="actions"><button type="button" (click)="cancelarEdicion()">Cancelar</button><button class="primary" type="submit" [disabled]="guardando()">{{ guardando() ? 'Guardando...' : 'Guardar cambios' }}</button></div>
         </form>

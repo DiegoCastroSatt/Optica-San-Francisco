@@ -1,0 +1,26 @@
+<div class="controles">
+  <button type="button" (click)="archivos.click()" [disabled]="bloqueado || fotos().length >= 5">Subir imágenes</button>
+  <input #archivos type="file" accept="image/jpeg,image/png,image/webp" multiple hidden (change)="seleccionar($event)">
+  <button type="button" (click)="abrirCamara()" [disabled]="bloqueado || esperando() || camaraAbierta() || fotos().length >= 5">Tomar foto</button>
+</div>
+<p class="ayuda">Hasta 5 fotos. JPG, PNG o WebP, máximo 5 MB por foto. Elige la principal para el catálogo.</p>
+@if (error()) { <p role="alert">{{ error() }}</p> }
+<div class="fotos">
+  @for (foto of fotos(); track foto.vista; let i = $index) {
+    <div class="foto">
+      <button type="button" class="miniatura" [class.principal]="principal() === i" [attr.aria-pressed]="principal() === i"
+        [attr.aria-label]="'Usar foto ' + (i + 1) + ' como principal'" (click)="elegirPrincipal(i)" [disabled]="bloqueado">
+        <img [src]="foto.vista" [alt]="'Foto ' + (i + 1) + ' del producto'">
+      </button>
+      <span>{{ principal() === i ? 'Principal' : 'Foto ' + (i + 1) }}</span>
+      <button type="button" (click)="quitar(i)" [disabled]="bloqueado" [attr.aria-label]="'Quitar foto ' + (i + 1)">Quitar</button>
+    </div>
+  }
+</div>
+<div class="camara" [hidden]="!camaraAbierta()">
+  <video #video autoplay muted playsinline aria-label="Vista previa de la cámara"></video>
+  <div class="controles">
+    <button type="button" (click)="capturar()" [disabled]="esperando() || capturando() || bloqueado">Capturar foto</button>
+    <button type="button" (click)="cerrarCamara()">Cerrar cámara</button>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+:host { display: block; }
+.controles, .fotos { display: flex; flex-wrap: wrap; gap: 12px; }
+button { padding: 8px 12px; border: 1px solid var(--color-borde-control); border-radius: 6px; background: var(--color-superficie); color: var(--color-principal); font: inherit; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+button:focus-visible { outline: 2px solid var(--color-principal); outline-offset: 2px; }
+.ayuda { color: var(--color-texto-secundario); font-size: .85rem; }
+.foto { display: grid; gap: 6px; text-align: center; font-size: .8rem; }
+.miniatura { padding: 4px; width: 100px; height: 90px; }
+.miniatura img { width: 100%; height: 100%; object-fit: contain; }
+.principal { border: 2px solid var(--color-principal); }
+.camara { margin-top: 16px; }
+video { display: block; width: 100%; max-width: 480px; max-height: 40vh; margin-bottom: 12px; background: #14221f; }
+[role="alert"] { color: var(--color-error-oscuro); }
