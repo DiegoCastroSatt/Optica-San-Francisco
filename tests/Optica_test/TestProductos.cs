@@ -466,7 +466,7 @@ public class TestProductos
         };
         await Assert.ThrowsAsync<ArgumentException>(() => CrearServicio(repo).ActualizarProducto(1,
             new ActualizarProductoDto { Codigo = "OPT-001", Nombre = "Armazón", Categoria = "Armazones",
-                Estado = "Disponible", RutasConservadas = ["/uploads/productos/ajena.jpg"] }, 42));
+                Estado = "Disponible", RutasConservadasJson = "[\"/uploads/productos/ajena.jpg\"]" }, 42));
     }
 
     private static Microsoft.AspNetCore.Http.IFormFile Foto(string nombre) =>

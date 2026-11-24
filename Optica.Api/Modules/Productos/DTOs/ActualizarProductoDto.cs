@@ -19,6 +19,5 @@ public class ActualizarProductoDto
     public IFormFile? Imagen { get; set; }
     public List<IFormFile> Imagenes { get; set; } = [];
     public int IndicePrincipal { get; set; }
-    public List<string>? RutasConservadas { get; set; }
     public string? RutasConservadasJson { get; set; }
 }

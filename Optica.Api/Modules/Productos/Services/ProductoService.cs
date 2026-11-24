@@ -179,7 +179,7 @@ public class ProductoService : IProductoService
         producto.Estado = EstadosValidos.First(estado => string.Equals(estado, dto.Estado.Trim(), StringComparison.OrdinalIgnoreCase));
         var anteriores = producto.RutasImagenes;
         // La ruta heredada se reemplaza solo si el consumidor antiguo envía Imagen.
-        List<string>? seleccion = dto.RutasConservadas;
+        List<string>? seleccion = null;
         if (dto.RutasConservadasJson is not null)
         {
             try { seleccion = System.Text.Json.JsonSerializer.Deserialize<List<string>>(dto.RutasConservadasJson); }
