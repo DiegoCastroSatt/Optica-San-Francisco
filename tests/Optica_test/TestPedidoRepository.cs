@@ -160,6 +160,29 @@ public class TestPedidoRepository
         Assert.Equal("Antireflejo", persistido.Anotaciones);
     }
 
+    [Fact]
+    public async Task ObtenerPedidosDetallePorClienteId_SoloRetornaPedidosDelClienteConsultado()
+    {
+        await using var contexto = CrearContexto();
+        contexto.Clientes.AddRange(
+            new Cliente { IdCliente = 1, Rut = "111111111", Nombre = "Cliente", Apellido = "Uno" },
+            new Cliente { IdCliente = 2, Rut = "222222222", Nombre = "Cliente", Apellido = "Dos" });
+        contexto.Pedidos.AddRange(
+            new Pedido { IdPedido = 10, Rut = "111111111", Fecha = new DateTime(2026, 10, 1), Estado = "Pendiente", Total = 1000 },
+            new Pedido { IdPedido = 20, Rut = "222222222", Fecha = new DateTime(2026, 10, 2), Estado = "Listo", Total = 2000 });
+        await contexto.SaveChangesAsync();
+
+        var repositorio = new PedidoRepository(contexto);
+
+        var pedidosCliente1 = (await repositorio.ObtenerPedidosDetallePorClienteIdAsync(1)).ToArray();
+        Assert.Single(pedidosCliente1);
+        Assert.Equal(10, pedidosCliente1[0].IdPedido);
+        Assert.Equal("Cliente Uno", pedidosCliente1[0].NombreCliente);
+
+        var pedidosInexistente = await repositorio.ObtenerPedidosDetallePorClienteIdAsync(999);
+        Assert.Empty(pedidosInexistente);
+    }
+
     private static OpticaDbContext CrearContexto()
     {
         var opciones = new DbContextOptionsBuilder<OpticaDbContext>()
